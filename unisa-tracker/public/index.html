@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UNISA Study Tracker — Mutshidzi Madzivhandila</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <span class="logo-icon">&#9632;</span>
+      <span>UNISA Tracker</span>
+    </div>
+    <div class="student-tag">Mutshidzi Madzivhandila</div>
+    <nav>
+      <a class="nav-link active" data-tab="dashboard" href="#">Dashboard</a>
+      <a class="nav-link" data-tab="modules" href="#">Modules</a>
+      <a class="nav-link" data-tab="tasks" href="#">All Tasks</a>
+      <a class="nav-link" data-tab="calendar" href="#">Calendar</a>
+      <a class="nav-link" data-tab="schedule" href="#">Study Schedule</a>
+      <a class="nav-link" data-tab="upload" href="#">Add / Upload</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-danger" onclick="clearCustomData()">Clear custom tasks</button>
+    </div>
+  </div>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard" class="tab active">
+      <h1 class="page-title">Dashboard</h1>
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="two-col">
+        <div>
+          <h2 class="section-title">Overdue</h2>
+          <div id="overdue-list" class="item-list"></div>
+        </div>
+        <div>
+          <h2 class="section-title">Due this week</h2>
+          <div id="due-soon-list" class="item-list"></div>
+        </div>
+      </div>
+      <div style="margin-top:2rem">
+        <h2 class="section-title">Upcoming (next 60 days)</h2>
+        <div id="upcoming-list" class="item-list"></div>
+      </div>
+    </section>
+
+    <!-- MODULES LIST -->
+    <section id="tab-modules" class="tab">
+      <h1 class="page-title">My Modules</h1>
+      <p class="page-desc">2026 academic year — 9 modules. Click any module to see its full detail, assessments, learning units, and calendar.</p>
+      <div id="modules-grid" class="modules-grid"></div>
+    </section>
+
+    <!-- MODULE DETAIL -->
+    <section id="tab-module-detail" class="tab">
+      <button class="back-btn" onclick="goBackToModules()">&#8592; All modules</button>
+      <div class="module-detail-hero" id="module-hero">
+        <div class="module-hero-code" id="hero-code"></div>
+        <div class="module-hero-body">
+          <h1 class="page-title" id="hero-title" style="margin-bottom:4px"></h1>
+          <div class="module-hero-meta" id="hero-meta"></div>
+        </div>
+      </div>
+      <div class="stats-grid" id="module-stats-grid" style="margin-bottom:1.5rem"></div>
+      <div class="inner-tabs" id="inner-tabs">
+        <button class="inner-tab active" onclick="showInnerTab('about')">About</button>
+        <button class="inner-tab" onclick="showInnerTab('units')">Learning Units</button>
+        <button class="inner-tab" onclick="showInnerTab('assessments')">Assessments</button>
+        <button class="inner-tab" onclick="showInnerTab('modcal')">Calendar</button>
+      </div>
+      <div id="inner-about" class="inner-panel active">
+        <div class="about-grid">
+          <div class="about-desc" id="about-desc"></div>
+          <div class="about-sidebar" id="about-sidebar"></div>
+        </div>
+      </div>
+      <div id="inner-units" class="inner-panel">
+        <div id="units-list"></div>
+      </div>
+      <div id="inner-assessments" class="inner-panel">
+        <div id="module-assessments-list" class="item-list"></div>
+      </div>
+      <div id="inner-modcal" class="inner-panel">
+        <div class="cal-nav">
+          <button onclick="changeModuleMonth(-1)">&#8592;</button>
+          <h3 id="module-cal-label"></h3>
+          <button onclick="changeModuleMonth(1)">&#8594;</button>
+        </div>
+        <div class="cal-headers">
+          <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+        </div>
+        <div class="cal-grid" id="module-cal-grid"></div>
+      </div>
+    </section>
+
+    <!-- ALL TASKS -->
+    <section id="tab-tasks" class="tab">
+      <h1 class="page-title">All Tasks</h1>
+      <div class="filter-bar">
+        <select id="filter-module" onchange="renderTasks()"><option value="">All modules</option></select>
+        <select id="filter-type" onchange="renderTasks()">
+          <option value="">All types</option>
+          <option>Assignment</option><option>Assessment</option><option>Quiz</option>
+          <option>Exam</option><option>Test</option><option>Task</option><option>Lecture</option>
+        </select>
+        <select id="filter-status" onchange="renderTasks()">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="done">Done</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+      <div id="tasks-list" class="item-list"></div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section id="tab-calendar" class="tab">
+      <h1 class="page-title">Calendar</h1>
+      <div class="cal-nav">
+        <button onclick="changeMonth(-1)">&#8592;</button>
+        <h2 id="cal-label"></h2>
+        <button onclick="changeMonth(1)">&#8594;</button>
+      </div>
+      <div class="cal-headers">
+        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </section>
+
+    <!-- SCHEDULE GENERATOR -->
+    <section id="tab-schedule" class="tab">
+      <h1 class="page-title">Study Schedule Generator</h1>
+      <p class="page-desc">Set your preferences below and generate a personalised day-by-day study plan that fits all your learning units and assessments before your deadline.</p>
+
+      <div id="sched-form">
+
+        <!-- Step 1: Finish by -->
+        <div class="sched-step">
+          <div class="sched-step-num">1</div>
+          <div class="sched-step-body">
+            <div class="sched-step-title">When do you want to finish everything?</div>
+            <div class="sched-step-desc">All learning units, assessments, and tasks will be scheduled before this date.</div>
+            <input type="date" id="sched-end-date" style="margin-top:10px;" />
+          </div>
+        </div>
+
+        <!-- Step 2: Study days -->
+        <div class="sched-step">
+          <div class="sched-step-num">2</div>
+          <div class="sched-step-body">
+            <div class="sched-step-title">Which days of the week can you study?</div>
+            <div class="sched-step-desc">Select all days you are available.</div>
+            <div class="day-picker" style="margin-top:10px;">
+              <label class="day-chip"><input type="checkbox" value="1" checked /><span>Mon</span></label>
+              <label class="day-chip"><input type="checkbox" value="2" checked /><span>Tue</span></label>
+              <label class="day-chip"><input type="checkbox" value="3" checked /><span>Wed</span></label>
+              <label class="day-chip"><input type="checkbox" value="4" checked /><span>Thu</span></label>
+              <label class="day-chip"><input type="checkbox" value="5" checked /><span>Fri</span></label>
+              <label class="day-chip"><input type="checkbox" value="6" /><span>Sat</span></label>
+              <label class="day-chip"><input type="checkbox" value="0" /><span>Sun</span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Hours per day -->
+        <div class="sched-step">
+          <div class="sched-step-num">3</div>
+          <div class="sched-step-body">
+            <div class="sched-step-title">How many hours can you study per day?</div>
+            <div class="sched-step-desc">Be realistic — this determines how much we schedule each day.</div>
+            <div style="display:flex;align-items:center;gap:14px;margin-top:10px;">
+              <input type="range" id="sched-hours" min="1" max="10" value="3" step="1" style="flex:1;max-width:260px;" oninput="document.getElementById('sched-hours-val').textContent=this.value" />
+              <span id="sched-hours-val" style="font-size:18px;font-weight:600;min-width:24px;">3</span>
+              <span style="font-size:13px;color:var(--muted);">hours / day</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Select modules -->
+        <div class="sched-step">
+          <div class="sched-step-num">4</div>
+          <div class="sched-step-body">
+            <div class="sched-step-title">Which modules do you want to include?</div>
+            <div class="sched-step-desc">Tick every module you want the schedule to cover. Untick any you've already finished or want to skip.</div>
+            <div style="display:flex;gap:8px;margin:10px 0 12px;flex-wrap:wrap;">
+              <button class="bulk-btn" onclick="schedSelectAll(true)" style="font-size:12px;padding:5px 12px;">Select all</button>
+              <button class="bulk-btn bulk-btn-clear" onclick="schedSelectAll(false)" style="font-size:12px;padding:5px 12px;">Clear all</button>
+            </div>
+            <div id="sched-module-list" class="sched-module-list"></div>
+          </div>
+        </div>
+
+        <!-- Step 5: What to include -->
+        <div class="sched-step">
+          <div class="sched-step-num">5</div>
+          <div class="sched-step-body">
+            <div class="sched-step-title">What should the schedule include?</div>
+            <div class="day-picker" style="margin-top:10px;">
+              <label class="day-chip"><input type="checkbox" id="inc-units" checked /><span>Learning Units</span></label>
+              <label class="day-chip"><input type="checkbox" id="inc-assessments" checked /><span>Assessments</span></label>
+              <label class="day-chip"><input type="checkbox" id="inc-done" /><span>Include already-done items</span></label>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-primary" style="font-size:15px;padding:12px 32px;margin-top:8px;" onclick="generateSchedule()">
+          Generate my study schedule →
+        </button>
+      </div>
+
+      <!-- Generated schedule output -->
+      <div id="sched-output" style="display:none;margin-top:2rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:1rem;">
+          <h2 class="section-title" style="margin:0" id="sched-output-title"></h2>
+          <div style="display:flex;gap:8px;">
+            <button class="bulk-btn" onclick="window.print()">🖨 Print / Save PDF</button>
+            <button class="bulk-btn bulk-btn-clear" onclick="resetSchedule()">← Edit settings</button>
+          </div>
+        </div>
+        <div id="sched-stats" class="stats-grid" style="margin-bottom:1.5rem;"></div>
+        <div id="sched-days"></div>
+      </div>
+    </section>
+
+    <!-- ADD / UPLOAD -->
+    <section id="tab-upload" class="tab">
+      <h1 class="page-title">Add / Upload</h1>
+      <p class="page-desc">Your 9 UNISA modules are pre-loaded with all assessments and learning units. Use this page to add extra custom tasks or upload additional myUnisa HTML if new tasks appear.</p>
+      <div class="upload-card">
+        <h2 class="section-title">Add custom task</h2>
+        <div class="form-row">
+          <input type="text" id="manual-title" placeholder="Task title" />
+          <select id="manual-module-select"><option value="">Select module</option></select>
+        </div>
+        <div class="form-row">
+          <select id="manual-type">
+            <option>Assignment</option><option>Assessment</option><option>Exam</option>
+            <option>Test</option><option>Quiz</option><option>Lecture</option><option>Task</option>
+          </select>
+          <input type="date" id="manual-due" />
+        </div>
+        <textarea id="manual-note" placeholder="Notes (optional)" style="width:100%;margin-bottom:10px;height:60px;border:1px solid var(--border);border-radius:7px;padding:8px;font-size:13px;background:var(--bg);color:var(--text);resize:vertical;"></textarea>
+        <button class="btn-primary" onclick="addManual()">Add task</button>
+      </div>
+      <div class="upload-card">
+        <h2 class="section-title">Parse additional myUnisa HTML</h2>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:10px;">If your lecturer adds new assessments, paste or upload the updated module HTML here.</p>
+        <textarea id="html-paste" placeholder="Paste HTML source here..." style="width:100%;height:120px;border:1px solid var(--border);border-radius:7px;padding:10px;font-size:12px;font-family:monospace;resize:vertical;background:var(--bg);color:var(--text);margin-bottom:10px;"></textarea>
+        <button class="btn-primary" onclick="parsePaste()">Extract tasks from HTML</button>
+        <div style="margin-top:12px;">
+          <input type="file" id="html-file" accept=".html,.htm" style="font-size:13px;" />
+          <button class="btn-primary" onclick="parseFile()" style="margin-top:8px;">Upload HTML file</button>
+        </div>
+      </div>
+      <div id="parse-result" class="parse-result hidden"></div>
+    </section>
+
+  </main>
+
+  <script src="modules-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
