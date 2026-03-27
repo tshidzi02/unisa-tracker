@@ -449,5 +449,9 @@ const UNIT_LINKS = {
   },
 };
 
-// Export for use by app.js
+// Make available globally in browser AND as CommonJS export
+if (typeof window !== 'undefined') {
+  window.MODULE_DATA = MODULE_DATA;
+  window.UNIT_LINKS  = UNIT_LINKS;
+}
 if (typeof module !== 'undefined') module.exports = { MODULE_DATA, UNIT_LINKS };

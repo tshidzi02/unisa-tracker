@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -233,6 +234,18 @@
         <div id="sched-stats" class="stats-grid" style="margin-bottom:1.5rem;"></div>
         <div id="sched-days"></div>
       </div>
+
+      <div id="saved-schedules-panel" class="upload-card" style="margin-top:1.25rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div>
+            <h2 class="section-title" style="margin-bottom:4px;">Saved schedules</h2>
+            <p class="page-desc" style="margin-bottom:0;">Your generated schedules are saved so they stay available after refresh.</p>
+          </div>
+          <button class="bulk-btn" onclick="renderSavedSchedules()">Refresh saved schedules</button>
+        </div>
+        <div id="saved-schedules-list" class="item-list" style="margin-top:12px;"></div>
+      </div>
+
     </section>
 
     <!-- ADD / UPLOAD -->
@@ -285,3 +298,9 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+

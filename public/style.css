@@ -1,3 +1,4 @@
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -908,3 +909,43 @@ input[type="text"], input[type="date"], select {
     .main    { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
   }
 }
+
+
+
+
+
+/* ── Saved schedules ── */
+.saved-sched-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.saved-sched-main { flex: 1; min-width: 0; }
+.saved-sched-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.saved-sched-meta { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.saved-sched-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.saved-sched-actions .bulk-btn { white-space: nowrap; }
+
+
+
+
+/* ── Saved schedule cards ── */
+.saved-schedule-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.saved-schedule-info { flex: 1; min-width: 0; }
+.saved-schedule-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.saved-schedule-meta  { font-size: 12px; color: var(--muted); margin-top: 2px; }
