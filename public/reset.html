@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UNISA Tracker — Reset</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f4f6f9;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text: #1a202c;
+      --muted: #718096;
+      --red: #e53e3e;
+      --red-bg: #fff5f5;
+      --red-border: #fc8181;
+      --green: #38a169;
+      --green-bg: #f0fff4;
+      --green-border: #68d391;
+      --blue: #3182ce;
+      --blue-bg: #ebf8ff;
+      --blue-border: #90cdf4;
+      --amber: #d69e2e;
+      --amber-bg: #fffff0;
+      --amber-border: #f6e05e;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .page-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .page-header .logo {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .page-header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .page-header p {
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+
+    .warning-banner {
+      background: var(--amber-bg);
+      border: 1px solid var(--amber-border);
+      border-radius: var(--radius);
+      padding: 0.9rem 1.1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+      color: #744210;
+      line-height: 1.5;
+    }
+    .warning-banner strong { font-weight: 700; }
+
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+      padding-left: 2px;
+    }
+
+    .card-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .data-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .data-card-checkbox {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, border-color 0.15s;
+      font-size: 13px;
+      color: #fff;
+      user-select: none;
+    }
+    .data-card-checkbox.checked {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .data-card-body { flex: 1; }
+    .data-card-title {
+      font-size: 0.925rem;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .data-card-desc {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .data-card-count {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .data-card-count.has-data {
+      background: var(--red-bg);
+      border-color: var(--red-border);
+      color: var(--red);
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.85rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff;
+    }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-back {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .result-banner {
+      display: none;
+      border-radius: var(--radius);
+      padding: 0.9rem 1.1rem;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      margin-top: 1rem;
+    }
+    .result-banner.success {
+      background: var(--green-bg);
+      border: 1px solid var(--green-border);
+      color: #276749;
+    }
+    .result-banner.error {
+      background: var(--red-bg);
+      border: 1px solid var(--red-border);
+      color: #9b2c2c;
+    }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 1.5rem 0;
+    }
+
+    .confirm-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .confirm-overlay.show { display: flex; }
+
+    .confirm-box {
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 1.75rem 1.5rem;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .confirm-box h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    .confirm-box p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+    }
+    .confirm-box ul {
+      list-style: none;
+      margin-bottom: 1.25rem;
+    }
+    .confirm-box ul li {
+      font-size: 0.85rem;
+      padding: 4px 0;
+      color: var(--text);
+    }
+    .confirm-box ul li::before { content: "✕ "; color: var(--red); font-weight: 700; }
+    .confirm-btns {
+      display: flex;
+      gap: 0.75rem;
+    }
+    .confirm-btns .btn { flex: 1; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="page-header">
+    <div class="logo">🔄</div>
+    <h1>UNISA Tracker — Reset Tool</h1>
+    <p>Choose what to clear, then re-upload your myUnisa files fresh.</p>
+  </div>
+
+  <div class="warning-banner">
+    ⚠️ <strong>This cannot be undone.</strong> Cleared data is permanently removed from your browser's localStorage. Only clear what you want to start fresh.
+  </div>
+
+  <div class="section-title">Select data to clear</div>
+
+  <div class="card-grid" id="card-grid">
+
+    <div class="data-card" onclick="toggleCard('doneTasks')">
+      <div class="data-card-checkbox" id="chk-doneTasks"></div>
+      <div class="data-card-body">
+        <div class="data-card-title">
+          ✅ Task &amp; Unit completions
+          <span class="data-card-count" id="cnt-doneTasks">—</span>
+        </div>
+        <div class="data-card-desc">All checked-off assessments and learning units. Clears your progress so everything shows as pending again.</div>
+      </div>
+    </div>
+
+    <div class="data-card" onclick="toggleCard('customTasks')">
+      <div class="data-card-checkbox" id="chk-customTasks"></div>
+      <div class="data-card-body">
+        <div class="data-card-title">
+          ✏️ Custom tasks
+          <span class="data-card-count" id="cnt-customTasks">—</span>
+        </div>
+        <div class="data-card-desc">Tasks you added manually. Does not affect the built-in module assessments.</div>
+      </div>
+    </div>
+
+    <div class="data-card" onclick="toggleCard('moduleResources')">
+      <div class="data-card-checkbox" id="chk-moduleResources"></div>
+      <div class="data-card-body">
+        <div class="data-card-title">
+          📎 Attached files (resources)
+          <span class="data-card-count" id="cnt-moduleResources">—</span>
+        </div>
+        <div class="data-card-desc">PDFs, Word docs, and other files attached to your modules. These can be re-uploaded after clearing.</div>
+      </div>
+    </div>
+
+    <div class="data-card" onclick="toggleCard('savedSchedules')">
+      <div class="data-card-checkbox" id="chk-savedSchedules"></div>
+      <div class="data-card-body">
+        <div class="data-card-title">
+          📅 Saved study schedules
+          <span class="data-card-count" id="cnt-savedSchedules">—</span>
+        </div>
+        <div class="data-card-desc">All generated and saved study schedules. You can regenerate new ones any time.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-secondary" onclick="selectAll()">☑ Select all</button>
+    <button class="btn btn-danger" id="clear-btn" onclick="showConfirm()" disabled>🗑 Clear selected data</button>
+  </div>
+
+  <div id="result-banner" class="result-banner"></div>
+
+  <div class="divider"></div>
+
+  <div class="actions">
+    <button class="btn btn-back" onclick="goToTracker()">← Back to Tracker</button>
+  </div>
+
+</div>
+
+<!-- Confirm overlay -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <h2>⚠️ Confirm clear</h2>
+    <p>The following data will be permanently deleted from your browser:</p>
+    <ul id="confirm-list"></ul>
+    <div class="confirm-btns">
+      <button class="btn btn-secondary" onclick="hideConfirm()">Cancel</button>
+      <button class="btn btn-danger" onclick="performClear()">Yes, clear it</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Keys and their human labels ──────────────────────────────
+  const KEYS = {
+    doneTasks:      { label: 'Task & Unit completions', countFn: raw => JSON.parse(raw || '[]').length + ' items' },
+    customTasks:    { label: 'Custom tasks',            countFn: raw => JSON.parse(raw || '[]').length + ' tasks' },
+    moduleResources:{ label: 'Attached files',          countFn: raw => JSON.parse(raw || '[]').length + ' files' },
+    savedSchedules: { label: 'Saved study schedules',   countFn: raw => JSON.parse(raw || '[]').length + ' schedules' },
+  };
+
+  const selected = new Set();
+
+  // ── On load: fill in counts ──────────────────────────────────
+  function refreshCounts() {
+    Object.entries(KEYS).forEach(([key, meta]) => {
+      const raw = localStorage.getItem(key);
+      const cntEl = document.getElementById('cnt-' + key);
+      if (!cntEl) return;
+      if (raw === null) {
+        cntEl.textContent = 'empty';
+        cntEl.classList.remove('has-data');
+      } else {
+        try {
+          cntEl.textContent = meta.countFn(raw);
+          cntEl.classList.add('has-data');
+        } catch {
+          cntEl.textContent = 'has data';
+          cntEl.classList.add('has-data');
+        }
+      }
+    });
+  }
+
+  // ── Toggle selection ─────────────────────────────────────────
+  function toggleCard(key) {
+    const chk = document.getElementById('chk-' + key);
+    if (selected.has(key)) {
+      selected.delete(key);
+      chk.classList.remove('checked');
+      chk.textContent = '';
+    } else {
+      selected.add(key);
+      chk.classList.add('checked');
+      chk.textContent = '✓';
+    }
+    document.getElementById('clear-btn').disabled = selected.size === 0;
+  }
+
+  function selectAll() {
+    Object.keys(KEYS).forEach(key => {
+      if (!selected.has(key)) toggleCard(key);
+    });
+  }
+
+  // ── Confirm dialog ───────────────────────────────────────────
+  function showConfirm() {
+    if (selected.size === 0) return;
+    const list = document.getElementById('confirm-list');
+    list.innerHTML = [...selected].map(k => `<li>${KEYS[k].label}</li>`).join('');
+    document.getElementById('confirm-overlay').classList.add('show');
+  }
+
+  function hideConfirm() {
+    document.getElementById('confirm-overlay').classList.remove('show');
+  }
+
+  // ── Nuke service worker caches ───────────────────────────────
+  async function clearServiceWorker() {
+    try {
+      // Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      // Delete all caches
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (e) {
+      console.warn('SW clear error:', e);
+    }
+  }
+
+  // ── Actually clear ───────────────────────────────────────────
+  async function performClear() {
+    hideConfirm();
+
+    const cleared = [];
+    selected.forEach(key => {
+      localStorage.removeItem(key);
+      cleared.push(KEYS[key].label);
+      const chk = document.getElementById('chk-' + key);
+      if (chk) { chk.classList.remove('checked'); chk.textContent = ''; }
+    });
+    selected.clear();
+    document.getElementById('clear-btn').disabled = true;
+
+    // Always nuke the service worker cache so the tracker reloads fresh
+    await clearServiceWorker();
+
+    const banner = document.getElementById('result-banner');
+    banner.className = 'result-banner success';
+    banner.innerHTML = `✅ Cleared: <strong>${cleared.join(', ')}</strong> — and service worker cache reset.<br>
+      Taking you back to the tracker in <strong id="countdown">3</strong>s so you can upload fresh…`;
+    banner.style.display = 'block';
+
+    refreshCounts();
+    banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Countdown then hard-reload the tracker
+    let count = 3;
+    const interval = setInterval(() => {
+      count--;
+      const el = document.getElementById('countdown');
+      if (el) el.textContent = count;
+      if (count <= 0) {
+        clearInterval(interval);
+        // Hard reload bypasses any remaining cache
+        window.location.replace('/?nocache=' + Date.now());
+      }
+    }, 1000);
+  }
+
+  // ── Go back ──────────────────────────────────────────────────
+  function goToTracker() {
+    window.location.replace('/?nocache=' + Date.now());
+  }
+
+  // ── Init ─────────────────────────────────────────────────────
+  refreshCounts();
+</script>
+</body>
+</html>

@@ -104,6 +104,155 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// ============================================================
+// ADD THESE ROUTES TO YOUR server.js / index.js
+// Paste them BEFORE the line:  app.listen(...)
+// ============================================================
+
+const fs   = require('fs');
+
+const MODULES_DATA_PATH = path.join(__dirname, 'public', 'modules-data.js');
+
+// ── Helper: read the current MODULE_DATA array from the .js file ──────────────
+function readModuleData() {
+  try {
+    const src = fs.readFileSync(MODULES_DATA_PATH, 'utf8');
+    // Strip the const declarations and eval the array
+    const match = src.match(/const MODULE_DATA\s*=\s*(\[[\s\S]*?\]);\s*(?:const UNIT_LINKS|$)/);
+    if (!match) return [];
+    return JSON.parse(match[1]);
+  } catch (err) {
+    console.error('readModuleData error:', err.message);
+    return [];
+  }
+}
+
+// ── Helper: read the current UNIT_LINKS object from the .js file ──────────────
+function readUnitLinks() {
+  try {
+    const src = fs.readFileSync(MODULES_DATA_PATH, 'utf8');
+    const match = src.match(/const UNIT_LINKS\s*=\s*(\{[\s\S]*?\});/);
+    if (!match) return {};
+    return JSON.parse(match[1]);
+  } catch (err) {
+    return {};
+  }
+}
+
+// ── Helper: write MODULE_DATA + UNIT_LINKS back to the .js file ───────────────
+function writeModuleData(modules, unitLinks) {
+  const json  = JSON.stringify(modules, null, 2);
+  const links = JSON.stringify(unitLinks || {}, null, 2);
+
+  const src = `// ============================================================
+// UNISA 2026 - Complete Module Data (auto-updated)
+// ============================================================
+
+const MODULE_DATA = ${json};
+
+const UNIT_LINKS = ${links};
+`;
+  fs.writeFileSync(MODULES_DATA_PATH, src, 'utf8');
+}
+
+// ── POST /api/upsert-module ──────────────────────────────────────────────────
+// Body: { module: { code, title, period, description, assessments, learningUnits, ... } }
+// Inserts if new, merges/updates if exists.
+app.post('/api/upsert-module', (req, res) => {
+  try {
+    const incoming = req.body.module;
+    if (!incoming || !incoming.code) {
+      return res.status(400).json({ error: 'Missing module.code' });
+    }
+
+    const modules   = readModuleData();
+    const unitLinks = readUnitLinks();
+
+    const code = incoming.code.trim().toUpperCase();
+    const idx  = modules.findIndex(m => m.code === code);
+
+    if (idx === -1) {
+      // Brand new module — assign next color slot
+      incoming.code  = code;
+      incoming.color = modules.length % 6;
+      modules.push(incoming);
+    } else {
+      // Merge: update fields that came in, keep existing ones not overridden
+      const existing = modules[idx];
+
+      // Always update these if provided
+      if (incoming.title)       existing.title       = incoming.title;
+      if (incoming.period)      existing.period      = incoming.period;
+      if (incoming.lecturer)    existing.lecturer    = incoming.lecturer;
+      if (incoming.email)       existing.email       = incoming.email;
+      if (incoming.tel)         existing.tel         = incoming.tel;
+      if (incoming.description) existing.description = incoming.description;
+
+      // Merge assessments — add new ones, don't duplicate by title
+      if (Array.isArray(incoming.assessments) && incoming.assessments.length) {
+        const current = existing.assessments || [];
+        incoming.assessments.forEach(a => {
+          if (!current.find(x => x.title === a.title)) current.push(a);
+        });
+        existing.assessments = current;
+      }
+
+      // Merge tasks same way
+      if (Array.isArray(incoming.tasks) && incoming.tasks.length) {
+        const current = existing.tasks || [];
+        incoming.tasks.forEach(t => {
+          if (!current.find(x => x.title === t.title)) current.push(t);
+        });
+        existing.tasks = current;
+      }
+
+      // Merge learning units — add new ones by title
+      if (Array.isArray(incoming.learningUnits) && incoming.learningUnits.length) {
+        const current = existing.learningUnits || [];
+        incoming.learningUnits.forEach(u => {
+          if (!current.find(x => x.title === u.title)) current.push(u);
+        });
+        existing.learningUnits = current;
+      }
+
+      modules[idx] = existing;
+    }
+
+    // Merge unit links if provided
+    if (incoming.unitLinks) {
+      unitLinks[code] = { ...(unitLinks[code] || {}), ...incoming.unitLinks };
+    }
+
+    writeModuleData(modules, unitLinks);
+
+    res.json({
+      ok: true,
+      action: idx === -1 ? 'inserted' : 'updated',
+      code,
+      moduleCount: modules.length,
+    });
+
+  } catch (err) {
+    console.error('/api/upsert-module error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /api/modules ──────────────────────────────────────────────────────────
+// Returns the current MODULE_DATA as JSON (so the browser can reload it)
+app.get('/api/modules', (req, res) => {
+  try {
+    const modules   = readModuleData();
+    const unitLinks = readUnitLinks();
+    res.json({ modules, unitLinks });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
 app.listen(PORT, () => {
   console.log(`\n✅ UNISA Tracker running on port ${PORT}\n`);
+  console.log(`\n http://localhost:${PORT}/ \n`);
 });

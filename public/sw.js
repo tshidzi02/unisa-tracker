@@ -1,7 +1,7 @@
 // UNISA Tracker — Service Worker
 // Caches all app files so it works offline after first load
 
-const CACHE_NAME = 'unisa-tracker-v4';
+const CACHE_NAME = 'unisa-tracker-v12';
 
 const ASSETS = [
   '/',
@@ -11,7 +11,8 @@ const ASSETS = [
   '/modules-data.js',
   '/icon-192.png',
   '/icon-512.png',
-  '/manifest.json'
+  '/manifest.json',
+  '/app-resources.js'
 ];
 
 // Install — cache all assets

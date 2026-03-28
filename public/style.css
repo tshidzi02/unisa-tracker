@@ -288,6 +288,55 @@ input[type="text"], input[type="date"], select {
 .parse-result.error { background: var(--red-bg); color: var(--red); border-color: #f5a3a3; }
 .parse-result.hidden { display: none; }
 
+/* ── ADD TO style.css — paste anywhere in the /* UPLOAD */ section ── */
+
+/* File drop zone */
+.file-drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 28px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--bg);
+}
+.file-drop-zone:hover,
+.file-drop-zone.drag-over {
+  border-color: var(--text);
+  background: var(--surface);
+}
+.file-drop-icon {
+  font-size: 2rem;
+  margin-bottom: 6px;
+}
+.file-drop-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.file-drop-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Chosen file preview strip */
+.file-chosen-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.file-chosen-preview.hidden { display: none; }
+.file-chosen-icon { font-size: 1.2rem; }
+.file-chosen-name { flex: 1; color: var(--text); font-weight: 500; word-break: break-all; }
+.file-chosen-size { color: var(--muted); white-space: nowrap; }
+
 /* FILTERS */
 .filter-bar {
   display: flex;
@@ -949,3 +998,221 @@ input[type="text"], input[type="date"], select {
 .saved-schedule-info { flex: 1; min-width: 0; }
 .saved-schedule-title { font-size: 14px; font-weight: 600; color: var(--text); }
 .saved-schedule-meta  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+
+/* Upload card */
+.res-upload-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 1.2rem;
+}
+.res-upload-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.res-upload-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+.res-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.res-file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border: 1.5px dashed;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+.res-file-label:hover { background: rgba(0,0,0,0.04); }
+
+/* Upload result rows */
+.upload-result-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+.upload-result-new {
+  background: #edf7ee;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+.upload-result-updated {
+  background: #ebf8ff;
+  color: #1a5fa8;
+  border: 1px solid #90cdf4;
+}
+.upload-result-tasks {
+  background: #fffff0;
+  color: #744210;
+  border: 1px solid #f6e05e;
+}
+.upload-result-error {
+  background: #fff5f5;
+  color: #c0392b;
+  border: 1px solid #fc8181;
+}
+
+
+/* Status messages */
+.res-status {
+  font-size: 12px;
+  margin-top: 8px;
+  min-height: 18px;
+  color: var(--muted);
+}
+.res-status-ok    { color: var(--green); }
+.res-status-error { color: var(--red);   }
+
+/* File list */
+.res-list { display: flex; flex-direction: column; gap: 8px; }
+.res-empty {
+  font-size: 13px;
+  color: var(--muted);
+  padding: 14px 0;
+}
+
+.res-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.res-icon  { font-size: 22px; flex-shrink: 0; line-height: 1; }
+.res-info  { flex: 1; min-width: 0; }
+.res-name  { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res-meta  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.res-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Staging area */
+.res-staging {
+  margin-top: 10px;
+}
+.res-staging-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, #888);
+  margin-bottom: 6px;
+}
+.res-clear-btn {
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  color: #E24B4A;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.res-remove-btn {
+  background: none;
+  border: none;
+  color: #E24B4A;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.res-upload-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .res-card     { flex-wrap: wrap; }
+  .res-actions  { width: 100%; }
+  .res-actions .bulk-btn { flex: 1; text-align: center; }
+}
+
+/* ── ADD these rules into style.css, inside the .res-* section ── */
+
+/* "You can select multiple files at once" hint */
+.res-multi-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Upload queue — shown while files are being processed */
+.res-status .res-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text);
+}
+.res-status .res-queue-item:last-child { border-bottom: none; }
+
+.res-queue-icon { font-size: 14px; flex-shrink: 0; }
+.res-queue-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.res-queue-size { color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+
+.res-queue-state  { font-size: 11px; white-space: nowrap; flex-shrink: 0; font-weight: 500; }
+.res-queue-waiting   { color: var(--muted); }
+.res-queue-uploading { color: var(--muted); font-style: italic; }
+.res-queue-ok        { color: var(--green); }
+.res-queue-skip      { color: var(--muted); }
+.res-queue-error     { color: var(--red);   }
+
+/* ================================================================
+   Add these CSS rules to style.css
+   (anywhere in the .sched-* section)
+   ================================================================ */
+
+/* Session label — "Session 3/13" shown on multi-session learning units */
+.sched-session-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-right: 4px;
+}
+
+/* Meta row below the title — holds session label, prep-for tag, due tag */
+.sched-item-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* Wrap title + meta-row together */
+.sched-item-body {
+  flex: 1;
+  min-width: 0;
+}
