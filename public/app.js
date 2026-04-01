@@ -917,8 +917,10 @@ function saveScheduleRecord(days,allItems,endDate,hoursDay,settings){
   const sig=JSON.stringify({endDate,hoursDay,settings,days:sd,allItems});
   const ei=schedules.findIndex(s=>JSON.stringify({endDate:s.endDate,hoursDay:s.hoursDay,settings:s.settings,days:s.days||[],allItems:s.allItems||[]})===sig);
   if(ei!==-1) return schedules[ei];
-  const record={id:`sched_${Date.now()}`,savedAt:new Date().toISOString(),endDate,hoursDay,allItems,days:sd,settings};
-  schedules.unshift(record); setSavedSchedules(schedules); return record;
+  const record={id:`sched_${Date.now()}`,savedAt:new Date().toISOString(),endDate,hoursDay,days:sd,settings};
+  schedules.unshift(record);
+  if (schedules.length > 3) schedules = schedules.slice(0, 3); // keep only 3 most recent
+  setSavedSchedules(schedules); return record;
 }
 
 function loadScheduleRecord(id){
@@ -942,8 +944,8 @@ function renderSavedSchedules(){
       <div>
         <div class="saved-schedule-title">Finish by ${s.endDate}</div>
         <div class="saved-schedule-meta">Saved: ${savedDate}</div>
-        <div class="saved-schedule-meta">${(s.days||[]).length} study days · ${(s.allItems||[]).length} items · ${s.hoursDay}h/day</div>
-      </div>
+        <div class="saved-schedule-meta">${(s.days||[]).length} study days · ${(s.days||[]).reduce((n,d)=>n+(d.items||[]).length,0)} items · ${s.hoursDay}h/day</div>
+        </div>
       <button class="bulk-btn" onclick="openSavedSchedule('${s.id}')">Open</button>
     </div>`;
   }).join('');
