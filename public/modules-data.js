@@ -370,10 +370,10 @@ const MODULE_DATA = [
 const UNIT_LINKS = {
 
 "APM1513": {
-  "Assessment 1": [0, 1, 2],
-  "Assessment 2": [1, 2, 3],
-  "Assessment 3": [2, 3, 4],
-  "Assessment 4": [3, 4, 5],
+  "Assessment 1": [0, 1],
+  "Assessment 2": [2, 3],
+  "Assessment 3": [4],
+  "Assessment 4": [5],
   "Final Exam": [0, 1, 2, 3, 4, 5]
 },
 

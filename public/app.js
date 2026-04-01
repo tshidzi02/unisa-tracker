@@ -1050,12 +1050,13 @@ function expandUnitSessions(unit, unitIdx, mod, hardDue, totalSessions) {
       type:          'Learning Unit',
       title:         unit.title,
       sessionLabel:  `${s}/${totalSessions}`,
-      id:            uId,
+      id:            `${uId}__session__${s}`,   // ← unique per session
+      unitId:        uId,                         // ← the parent unit id
       sessionNum:    s,
       sessionTotal:  totalSessions,
       due:           hardDue,
       hardDue:       hardDue,
-      done:          uDone,
+      done:          doneTasks.includes(`${uId}__session__${s}`),
       hours:         2,
       color:         mod.color || 0,
       isUnit:        true,
@@ -1454,7 +1455,7 @@ function renderScheduleOutput(days,allItems,endDate,hoursDay){
     const modBlocks=Object.entries(byMod).map(([code,group])=>{
       const c=col(group.color);
       const rows=group.items.map(item=>{
-        const isDone=doneTasks.includes(item.id);
+        const isDone = doneTasks.includes(item.id);
         const typeIcon=item.isUnit?'📖':item.type==='Assignment'?'📝':item.type==='Quiz'?'📋':item.type==='Exam'?'🎓':item.type==='Test'?'🖊':'✅';
 
         // Session label e.g. "3/13" for multi-session units
@@ -1499,12 +1500,37 @@ function renderScheduleOutput(days,allItems,endDate,hoursDay){
   out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-function schedToggleDone(id){
-  if(doneTasks.includes(id)) doneTasks=doneTasks.filter(x=>x!==id);
-  else doneTasks.push(id);
-  localStorage.setItem('doneTasks',JSON.stringify(doneTasks));
-  rescheduleCurrentView(); renderDashboard();
-  if(activeModule) renderModuleDetail(activeModule);
+function schedToggleDone(id) {
+  if (doneTasks.includes(id)) {
+    doneTasks = doneTasks.filter(x => x !== id);
+  } else {
+    doneTasks.push(id);
+  }
+
+  // Sync parent unit completion if this is a session id
+  const sessionMatch = id.match(/^(.+__unit__\d+)__session__(\d+)$/);
+  if (sessionMatch) {
+    const unitId      = sessionMatch[1];
+    const sessionNum  = parseInt(sessionMatch[2]);
+    // Find total sessions for this unit from the saved schedule
+    const saved = loadScheduleFromStorage();
+    const allSessions = (saved?.allItems || []).filter(i => i.unitId === unitId);
+    const total = allSessions.length;
+    const doneSessions = allSessions.filter(i => doneTasks.includes(i.id)).length;
+
+    if (doneSessions === total && total > 0) {
+      // All sessions done → mark the unit itself done
+      if (!doneTasks.includes(unitId)) doneTasks.push(unitId);
+    } else {
+      // At least one session undone → unit is not fully done
+      doneTasks = doneTasks.filter(x => x !== unitId);
+    }
+  }
+
+  localStorage.setItem('doneTasks', JSON.stringify(doneTasks));
+  rescheduleCurrentView();
+  renderDashboard();
+  if (activeModule) renderModuleDetail(activeModule);
   updateModuleFilter();
 }
 

@@ -360,14 +360,20 @@ let moduleCalMonth = new Date(); moduleCalMonth.setDate(1);
 let activeModule   = null;
 let activeInner    = 'about';
 
+
+
 const MODULE_COLORS = [
-  { bg:'#eaf2fb', text:'#1a5fa8', accent:'#378ADD' },
-  { bg:'#edf7ee', text:'#2e7d32', accent:'#639922' },
-  { bg:'#fdf4e7', text:'#b8650a', accent:'#EF9F27' },
-  { bg:'#f3eefb', text:'#5e35b1', accent:'#7c4dff' },
-  { bg:'#fdf0ee', text:'#b71c1c', accent:'#E24B4A' },
-  { bg:'#e8f7f5', text:'#00695c', accent:'#1D9E75' },
+  { bg:'#eaf2fb', text:'#1a5fa8', accent:'#378ADD' },  // blue
+  { bg:'#edf7ee', text:'#2e7d32', accent:'#639922' },  // green
+  { bg:'#fdf4e7', text:'#b8650a', accent:'#EF9F27' },  // orange
+  { bg:'#f3eefb', text:'#5e35b1', accent:'#7c4dff' },  // purple
+  { bg:'#fdf0ee', text:'#b71c1c', accent:'#E24B4A' },  // red
+  { bg:'#e8f7f5', text:'#00695c', accent:'#1D9E75' },  // teal
+  { bg:'#fff8e1', text:'#f57f17', accent:'#FBC02D' },  // yellow
+  { bg:'#fce4ec', text:'#880e4f', accent:'#E91E8C' },  // pink
+  { bg:'#e8eaf6', text:'#283593', accent:'#3F51B5' },  // indigo
 ];
+
 const col = i => MODULE_COLORS[i % MODULE_COLORS.length];
 
 const API_BASE = '';
@@ -1408,33 +1414,54 @@ function expandUnitSessions(unit, unitIdx, mod, hardDue, totalSessions) {
   return items;
 }
 
+// ============================================================
+// generateSchedule() — DEBUGGED VERSION
+// Drop this function into app.js to replace the original.
+// Open DevTools → Console, then click "Generate Schedule".
+// ============================================================
+
 function generateSchedule() {
+  console.group('🗓️ generateSchedule() START');
+
+  // ── STEP 1: Read form inputs ────────────────────────────────────────────────
   const endDateVal = document.getElementById('sched-end-date').value;
-  if (!endDateVal) return alert('Please set a finish date first.');
-  const endDate   = new Date(endDateVal); endDate.setHours(23, 59, 59);
-  const today     = new Date(); today.setHours(0, 0, 0, 0);
-  const hoursDay  = parseInt(document.getElementById('sched-hours').value) || 3;
+  console.log('[1] endDateVal from input:', endDateVal);
+  if (!endDateVal) { console.error('[1] ❌ No end date set — aborting.'); return alert('Please set a finish date first.'); }
+
+  const endDate  = new Date(endDateVal); endDate.setHours(23, 59, 59);
+  const today    = new Date(); today.setHours(0, 0, 0, 0);
+  const hoursDay = parseInt(document.getElementById('sched-hours').value) || 3;
   const incUnits  = document.getElementById('inc-units').checked;
   const incAssess = document.getElementById('inc-assessments').checked;
   const incDone   = document.getElementById('inc-done').checked;
+  console.log('[1] Parsed settings →', { endDate: endDate.toISOString(), today: today.toISOString(), hoursDay, incUnits, incAssess, incDone });
+
   const studyDays = Array.from(document.querySelectorAll('.day-picker input[type=checkbox]'))
                         .filter(c => c.checked).map(c => parseInt(c.value));
-  if (!studyDays.length) return alert('Please select at least one study day.');
+  console.log('[1] Study days (0=Sun … 6=Sat):', studyDays);
+  if (!studyDays.length) { console.error('[1] ❌ No study days selected — aborting.'); return alert('Please select at least one study day.'); }
+
   const selectedMods = Array.from(document.querySelectorAll('.sched-mod-cb'))
                            .filter(c => c.checked).map(c => c.value);
-  if (!selectedMods.length) return alert('Please select at least one module.');
+  console.log('[1] Selected modules:', selectedMods);
+  if (!selectedMods.length) { console.error('[1] ❌ No modules selected — aborting.'); return alert('Please select at least one module.'); }
 
+  // ── STEP 2: Build the ordered item list ────────────────────────────────────
+  console.group('[2] Building allOrderedItems');
   const allOrderedItems = [];
   const TASK_FIELDS = ['assessments', 'tasks', 'lessons', 'classes',
                        'exercises', 'activities', 'practicals', 'workshops'];
 
   selectedMods.forEach(code => {
     const mod = MODULE_DATA.find(m => m.code === code);
-    if (!mod) return;
+    if (!mod) { console.warn(`  [2] ⚠️ Module ${code} not found in MODULE_DATA — skipping.`); return; }
+
     const links = (typeof UNIT_LINKS !== 'undefined' && UNIT_LINKS[code]) || {};
     const sessionsPerUnit = UNIT_SESSIONS[code] || 4;
+    console.group(`  [2] Processing module: ${code} | sessionsPerUnit=${sessionsPerUnit}`);
+    console.log(`  [2] UNIT_LINKS for ${code}:`, links);
 
-    // Collect assessments from all possible field names, deduplicated
+    // Collect all assessments from all field names, deduped
     const assessList = [];
     const seenTitles = new Set();
     TASK_FIELDS.forEach(field => {
@@ -1445,6 +1472,7 @@ function generateSchedule() {
         assessList.push(a);
       });
     });
+    console.log(`  [2] Deduplicated assessList (${assessList.length} items):`, assessList.map(a => a.title));
 
     const scheduledUnitIdxs = new Set();
 
@@ -1452,36 +1480,40 @@ function generateSchedule() {
       const aId   = `${code}__${a.title}`;
       const aDone = doneTasks.includes(aId);
       const aDue  = a.due || a.closes || null;
+      const shouldSched = shouldScheduleAssessment(a, today, endDate);
+      console.log(`    [2] Assessment "${a.title}" | id=${aId} | due=${aDue} | done=${aDone} | shouldSchedule=${shouldSched}`);
 
-      if (!shouldScheduleAssessment(a, today, endDate)) return;
+      if (!shouldSched) { console.log(`    [2]   ↳ Skipped (shouldScheduleAssessment returned false)`); return; }
 
       const reqIdxs = links[a.title] || [];
+      console.log(`    [2]   Prerequisite unit indexes for "${a.title}":`, reqIdxs);
 
-      // Schedule prerequisite units (as sessions) before this assessment
+      // Schedule prerequisite units before this assessment
       if (incUnits) {
         reqIdxs.forEach(i => {
-          if (scheduledUnitIdxs.has(i)) return;
+          if (scheduledUnitIdxs.has(i)) { console.log(`    [2]   Unit[${i}] already scheduled — skipping.`); return; }
           const u = (mod.learningUnits || [])[i];
-          if (!u) return;
+          if (!u) { console.warn(`    [2]   ⚠️ Unit[${i}] not found in learningUnits for ${code}`); return; }
           const uDone = doneTasks.includes(`${mod.code}__unit__${i}`);
-          if (!incDone && uDone) { scheduledUnitIdxs.add(i); return; }
+          if (!incDone && uDone) {
+            console.log(`    [2]   Unit[${i}] "${u.title}" is done and incDone=false — marking scheduled, skipping sessions.`);
+            scheduledUnitIdxs.add(i);
+            return;
+          }
           scheduledUnitIdxs.add(i);
           const sessions = expandUnitSessions(u, i, mod, aDue, sessionsPerUnit);
           sessions.forEach(s => { s.forAssessment = a.title; });
+          console.log(`    [2]   ✅ Added ${sessions.length} sessions for unit[${i}] "${u.title}" (forAssessment="${a.title}")`);
           allOrderedItems.push(...sessions);
         });
       }
 
       // The assessment itself
       if (incAssess) {
-        if (!incDone && aDone) return;
+        if (!incDone && aDone) { console.log(`    [2]   Assessment done + incDone=false — skipping.`); return; }
         const type = (a.type || '').toLowerCase();
-        const hrs =
-          type === 'exam'       ? 4   :
-          type === 'assignment' ? 3   :
-          type === 'quiz'       ? 1   :
-          type === 'test'       ? 2   :
-          /* assessment/other */ 1.5;
+        const hrs = type === 'exam' ? 4 : type === 'assignment' ? 3 : type === 'quiz' ? 1 : type === 'test' ? 2 : 1.5;
+        console.log(`    [2]   ✅ Adding assessment "${a.title}" | type=${type} | hours=${hrs}`);
         allOrderedItems.push({
           module: code, moduleTitle: mod.title,
           type: a.type || 'Assessment', title: a.title,
@@ -1497,141 +1529,189 @@ function generateSchedule() {
       (mod.learningUnits || []).forEach((u, i) => {
         if (scheduledUnitIdxs.has(i)) return;
         const uDone = doneTasks.includes(`${mod.code}__unit__${i}`);
-        if (!incDone && uDone) return;
+        if (!incDone && uDone) { console.log(`  [2]   Unit[${i}] "${u.title}" done + incDone=false — skipping.`); return; }
         const sessions = expandUnitSessions(u, i, mod, null, sessionsPerUnit);
+        console.log(`  [2]   ✅ Adding ${sessions.length} unlinked sessions for unit[${i}] "${u.title}"`);
         allOrderedItems.push(...sessions);
       });
     }
+
+    console.groupEnd();
   });
 
-  if (!allOrderedItems.length) return alert('No pending items found for the selected modules!');
+  console.log(`[2] allOrderedItems total: ${allOrderedItems.length}`);
+  console.log('[2] allOrderedItems:', allOrderedItems);
+  console.groupEnd();
 
+  if (!allOrderedItems.length) {
+    console.error('[2] ❌ No pending items found — aborting.');
+    return alert('No pending items found for the selected modules!');
+  }
+
+  // ── STEP 3: Build the list of available study days ─────────────────────────
+  console.group('[3] Building availableDays');
   const availableDays = [];
   let cursor = new Date(today);
   while (cursor <= endDate) {
     if (studyDays.includes(cursor.getDay())) availableDays.push(new Date(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
-  if (!availableDays.length) return alert('No study days available before your finish date!');
+  console.log(`[3] availableDays count: ${availableDays.length}`);
+  console.log('[3] First 5 days:', availableDays.slice(0, 5).map(d => d.toDateString()));
+  console.groupEnd();
+  if (!availableDays.length) { console.error('[3] ❌ No study days before finish date — aborting.'); return alert('No study days available before your finish date!'); }
 
+  // ── STEP 4: Initialise schedule skeleton ───────────────────────────────────
   const schedule = availableDays.map(d => ({ date: new Date(d), items: [], hoursUsed: 0 }));
+  console.log(`[4] Schedule skeleton created: ${schedule.length} days`);
 
-  // ── Separate items: assessments (pinned to due date) vs unit sessions (free) ──
-  // ONLY non-unit items (actual assessments) get pinned to their due date.
-  // Unit sessions go into round-robin queues — they already appear before
-  // their parent assessment in allOrderedItems due to the build order above.
+  // ── STEP 5: Split items into categories ────────────────────────────────────
+  console.group('[5] Splitting items into freeQueues / pinnedItems / floatItems');
+  const unitItems   = allOrderedItems.filter(i => i.isUnit);
+  const assessItems = allOrderedItems.filter(i => !i.isUnit);
+  console.log(`[5] unitItems: ${unitItems.length} | assessItems: ${assessItems.length}`);
 
-  const freeQueues = {};   // module → unit session items, in correct order
-  const pinnedItems = [];  // actual assessments with a due date
+  const freeQueues   = {};  // module → queue of unit sessions (+ undated assessments)
+  const pinnedItems  = [];  // assessments with a due date
+  // const floatItems = [];  // (currently merged into freeQueues)
 
-  // Build per-module free queues preserving allOrderedItems order
-  allOrderedItems.forEach(item => {
+  unitItems.forEach(item => {
     if (!freeQueues[item.module]) freeQueues[item.module] = [];
-    if (!item.isUnit && item.hardDue) {
-      // It's an actual assessment with a due date → pin it
+    freeQueues[item.module].push(item);
+  });
+
+  assessItems.forEach(item => {
+    if (item.hardDue) {
       pinnedItems.push(item);
     } else {
-      // It's a unit session (or assessment without due date) → round-robin
+      if (!freeQueues[item.module]) freeQueues[item.module] = [];
       freeQueues[item.module].push(item);
     }
   });
 
+  console.log('[5] freeQueues lengths:', Object.fromEntries(Object.entries(freeQueues).map(([k, v]) => [k, v.length])));
+  console.log('[5] pinnedItems:', pinnedItems.map(p => `${p.module} "${p.title}" due=${p.hardDue}`));
+  console.groupEnd();
+
   const modCodes = Object.keys(freeQueues);
-
-  // Sort pinned assessments by due date ascending
   pinnedItems.sort((a, b) => new Date(a.hardDue) - new Date(b.hardDue));
+  const dayModules = schedule.map(() => new Set());
 
-  // ── Step 1: Place pinned assessments near their due date ──────────────────
-  // Work backwards from the due date: find the latest day with capacity.
+  // ── STEP 6: Place pinned assessments near their due date ───────────────────
+  console.group('[6] Placing pinned assessments');
   pinnedItems.forEach(item => {
     const dueD = new Date(item.hardDue); dueD.setHours(23, 59, 59);
     let placed = false;
     for (let i = schedule.length - 1; i >= 0; i--) {
-      if (schedule[i].date <= dueD && schedule[i].hoursUsed + item.hours <= hoursDay + 1) {
+      const ok = schedule[i].date <= dueD
+              && schedule[i].hoursUsed + item.hours <= hoursDay + 1
+              && !dayModules[i].has(item.module);
+      if (ok) {
         schedule[i].items.push(item);
         schedule[i].hoursUsed += item.hours;
+        dayModules[i].add(item.module);
         placed = true;
+        console.log(`  [6] ✅ Placed "${item.title}" on day[${i}] = ${schedule[i].date.toDateString()}`);
         break;
       }
     }
     if (!placed) {
-      // Fallback: place on the closest day at or before due date
-      let fallback = schedule[schedule.length - 1];
+      let fallback = schedule.length - 1;
       for (let fi = schedule.length - 1; fi >= 0; fi--) {
-        if (schedule[fi].date <= dueD) { fallback = schedule[fi]; break; }
+        if (schedule[fi].date <= dueD) { fallback = fi; break; }
       }
-      fallback.items.push(item);
-      fallback.hoursUsed += item.hours;
+      schedule[fallback].items.push(item);
+      schedule[fallback].hoursUsed += item.hours;
+      dayModules[fallback].add(item.module);
+      console.warn(`  [6] ⚠️ Could not place "${item.title}" normally — fallback to day[${fallback}] = ${schedule[fallback].date.toDateString()}`);
     }
   });
+  console.groupEnd();
 
-  // ── Step 2: Round-robin free sessions across all available days ───────────
-  // Rotation order: interleave all modules so every day touches multiple modules.
-  // Sort by queue length descending so modules with more sessions stay spread out.
-  const rotation = [...modCodes].filter(c => freeQueues[c]?.length > 0)
+  // ── STEP 7: Round-robin free sessions ─────────────────────────────────────
+  console.group('[7] Round-robin free sessions');
+  const rotation = [...modCodes]
+    .filter(c => freeQueues[c]?.length > 0)
     .sort((a, b) => (freeQueues[b]?.length || 0) - (freeQueues[a]?.length || 0));
+  console.log('[7] rotation order:', rotation);
 
-  let rotIdx = 0;
+  let rotIdx  = 0;
   let totalFree = rotation.reduce((sum, c) => sum + (freeQueues[c]?.length || 0), 0);
+  console.log(`[7] totalFree sessions to place: ${totalFree}`);
 
   for (let dayIdx = 0; dayIdx < schedule.length && totalFree > 0; dayIdx++) {
     const day = schedule[dayIdx];
     const capacity = hoursDay - day.hoursUsed;
-    const slotsAvailable = Math.max(0, Math.floor(capacity / 2)); // 2h per session
-    if (slotsAvailable === 0) continue;
+    const slotsAvailable = Math.max(0, Math.floor(capacity / 2));
+    console.log(`  [7] Day[${dayIdx}] ${day.date.toDateString()} | hoursUsed=${day.hoursUsed} | capacity=${capacity} | slots=${slotsAvailable}`);
+    if (slotsAvailable === 0) { console.log(`  [7]   → No capacity, skipping.`); continue; }
 
     let slotsPlaced = 0;
-    let skips = 0; // consecutive empty queues encountered
+    let skips = 0;
 
     while (slotsPlaced < slotsAvailable && skips < rotation.length) {
       const code = rotation[rotIdx % rotation.length];
       rotIdx++;
-
       const queue = freeQueues[code];
-      if (!queue || queue.length === 0) {
-        skips++;
-        continue;
-      }
-      skips = 0;
+      if (!queue || queue.length === 0) { console.log(`    [7] Queue for ${code} empty — skip`); skips++; continue; }
+      if (dayModules[dayIdx].has(code)) { console.log(`    [7] ${code} already on day[${dayIdx}] — skip`); skips++; continue; }
 
+      skips = 0;
+      dayModules[dayIdx].add(code);
       const item = queue.shift();
       totalFree--;
       day.items.push(item);
       day.hoursUsed += item.hours;
       slotsPlaced++;
+      console.log(`    [7] ✅ Placed "${item.title}" (${code}) on day[${dayIdx}] | hoursUsed now=${day.hoursUsed} | totalFree=${totalFree}`);
     }
   }
+  console.groupEnd();
 
-  // ── Step 3: Overflow — spread remaining sessions across last available days ─
-  // Instead of dumping on one day, distribute one-per-day backwards.
+  // ── STEP 8: Overflow ───────────────────────────────────────────────────────
+  console.group('[8] Overflow handling');
   const overflowItems = [];
   modCodes.forEach(code => {
     while (freeQueues[code]?.length > 0) overflowItems.push(freeQueues[code].shift());
   });
-
+  console.log(`[8] overflowItems count: ${overflowItems.length}`);
   if (overflowItems.length > 0) {
+    console.warn('[8] ⚠️ Some items could not fit in schedule — trying overflow passes.');
     let oi = 0;
-    // Try to fit them by scanning the schedule multiple passes
-    for (let pass = 0; pass < 5 && oi < overflowItems.length; pass++) {
+    for (let pass = 0; pass < 10 && oi < overflowItems.length; pass++) {
       for (let di = 0; di < schedule.length && oi < overflowItems.length; di++) {
-        const day = schedule[di];
-        if (day.hoursUsed + overflowItems[oi].hours <= hoursDay + 4) {
-          day.items.push(overflowItems[oi]);
-          day.hoursUsed += overflowItems[oi].hours;
+        const item = overflowItems[oi];
+        if (!dayModules[di].has(item.module) && schedule[di].hoursUsed + item.hours <= hoursDay + 2) {
+          schedule[di].items.push(item);
+          schedule[di].hoursUsed += item.hours;
+          dayModules[di].add(item.module);
+          console.log(`  [8] Overflow pass ${pass}: placed "${item.title}" on day[${di}]`);
           oi++;
         }
       }
     }
-    // Any still unplaced: stack on last day
     while (oi < overflowItems.length) {
       const last = schedule[schedule.length - 1];
       last.items.push(overflowItems[oi]);
       last.hoursUsed += overflowItems[oi].hours;
+      console.warn(`  [8] Force-placed remaining overflow "${overflowItems[oi].title}" on last day`);
       oi++;
     }
   }
+  console.groupEnd();
 
-  renderScheduleOutput(schedule.filter(d => d.items.length > 0), allOrderedItems, endDateVal, hoursDay);
+  // ── STEP 9: Final summary ──────────────────────────────────────────────────
+  const filledDays = schedule.filter(d => d.items.length > 0);
+  console.group('[9] Final schedule summary');
+  console.log(`[9] Total days with items: ${filledDays.length} / ${schedule.length}`);
+  console.log(`[9] Total items scheduled: ${filledDays.reduce((s, d) => s + d.items.length, 0)}`);
+  console.log(`[9] Total hours: ${filledDays.reduce((s, d) => s + d.hoursUsed, 0)}`);
+  console.log('[9] Full schedule:', schedule);
+  console.groupEnd();
+
+  console.groupEnd(); // 🗓️ generateSchedule() START
+
+  renderScheduleOutput(filledDays, allOrderedItems, endDateVal, hoursDay);
 }
 
 
@@ -2292,1053 +2372,455 @@ FILE: ./public\manifest.json
 FILE: ./public\modules-data.js
 ======================================================================
 
-// ============================================================
-// UNISA 2026 - Complete Module Data (auto-updated)
-// ============================================================
-
 const MODULE_DATA = [
-  {
-    "code": "APM1513",
-    "title": "Year module Department of Mathematical Sciences IMPORTANT INFORMATION: Please",
-    "period": "Year — 2026",
-    "lecturer": "as well as other Unisa platforms t",
-    "email": "sithoy@unisa.ac.za",
-    "tel": "011 670 9147",
-    "description": "Define tomorrow. university of south africa Tutorial letter 101/0/2026 APPLIED LINEAR ALGEBRA APM1513 Year module Department of Mathematical Sciences IMPORTANT INFORMATION: Please register on my Unisa, activate your myLife e-mail account and make sure that you have regular access to the myUnisa module website, APM1513-26-Y, as well as your group website. Note: This is a fully online module. It is therefore, only available on my Unisa. APM1513/101/0/2026 CONTENTS Page 1 INTRODUCTION ..................................................................................................................4 2 MODULE OVERVIEW..........................................................................................................5 2.1 Purpose ................................................................................................................................5 2.2 Outcomes .............................................................................................................................5 3 CURRICULUM TRANSFORMATION ..................................................................................6 4 LECTURER(S) AND CONTACT DETAILS ..........................................................................6 4.1 Lecturer(s) ............................................................................................................................6 4.2 Department ..........................................................................................................................6 4.3 University..............................................................................................................................6 5 RESOURCES.......................................................................................................................7 5.1 Prescribed book(s) ...............................................................................................................7 5.2 Recommended book(s) ........................................................................................................7 5.3 E-reserves ............................................................................................................................8 5.4 Library services and resources ............................................................................................8 6 STUDENT SUPPORT SERVICES .......................................................................................9 6.1 Study @ Unisa Publication and myModules.........................................................................9 6.2 The Unisa First-Year Experience Programme ....................................................................10 6.3 Using Recognition of Prior Learning (RPL) to apply for module credit within a qualification11 6.4 Compulsory Completion of the Academic Integrity Course................................................12 7 STUDY PLAN.....................................................................................................................13 8 HOW TO STUDY ONLINE? ...............................................................................................14 8.1 What does it mean to study fully online?............................................................................14 8.2 myUnisa Tools ....................................................................................................................15 9 ASSESSMENT...................................................................................................................15 9.1 Assessment criteria ............................................................................................................15 9.2 Assessment plan ................................................................................................................15 9.3 Assessment/Assignment due dates ...................................................................................17 9.4 Submission of assessments/assignments..........................................................................17 9.4.1 Types of assignments and descriptions..............................................................................18 2 APM1513/101/0/2026 9.5 The assessments/assignments ..........................................................................................19 9.5.1 Quiz or Multiple - Choice assignments...............................................................................19 9.5.2 Written Assignment ............................................................................................................19 9.6 Other assessment methods ...............................................................................................20 9.7 The examination .................................................................................................................20 9.8 Invigilation/proctoring .........................................................................................................21 10 ACADEMIC DISHONESTY................................................................................................22 10.1 Plagiarism...........................................................................................................................22 10.2 Cheating .............................................................................................................................22 11 STUDENTS LIVING WITH DISABILITIES ........................................................................23 12 FREQUENTLY ASKED QUESTIONS................................................................................23 13 SOURCES CONSULTED...................................................................................................24 14 GETTING STARTED: INSTALLATION OF GNU OCTAVE................................................24 14.1 Windows .............................................................................................................................24 14.2 Linux and Mac ....................................................................................................................24 14.3 Unisa Digital Access Centres .............................................................................................25 14.4 MATLAB .............................................................................................................................25 15 IN CLOSING ......................................................................................................................25 ADDENDUM A: Additional Notes and Curriculum Transformation.........................................26 ANNEXURE A: GLOSSARY OF TERM .......................................................................................26 3 1 INTRODUCTION Dear Students Welcome to APM1513, Applied Linear Algebra. Please read through this tutorial letter to familiarize yourself with how we will work together this year. Take your time to read through this tutorial letter so that you prepare yourself properly before we start with the teaching and learning in this module. Unisa is a comprehensive open distance e-learning (CODeL) higher education institution. Our com- prehensive curricula encapsulates a range of offerings, from strictly vocational to strictly academic certificates, diplomas and degrees. Unisa’s openness and its distance e-Learning character result in many students who may not previously have had an opportunity to enrol in higher education registering at the University. Our CODeL character implies that our programmes are carefully planned and structured to ensure success for students, ranging from the under-prepared but with potential to the sufficiently prepared. Multiple modes of delivery are involved in teaching and learning in a CODeL context, ranging from blended to fully online learning. As a default position, all postgraduate programmes are offered fully online with no printed study materials. Undergraduate programmes are offered using a blended mode of delivery where printed study materials are augmented with online teaching and learning via myUnisa , our learning management system. In some instances, undergraduate programmes are offered fully online as well. Furthermore, our programmes are aligned with the vision, mission and values of the University. Unisa’s commitment to serving humanity and shaping futures – combined with a clear appreciation of our location on the African continent – means that Unisa’s graduates have distinctive graduate qualities, which include • being independent, resilient, responsible and caring citizens able to fulfil and serve in multiple roles in their immediate and future local, national and global communities • having a critical understanding of their location on the African continent and taking account of its histories, challenges and potential in relation to globally diverse contexts • the ability to critically analyse and evaluate the credibility and usefulness of information and data from multiple sources in a globalised world with ever-increasing information and data flows and competing worldviews • knowing how to apply their discipline-specific knowledges competently, ethically and creatively to solve real-life problems • an awareness of their own learning and developmental needs and future potential The module APM1513 is offered online, meaning that all information is available via the internet, we use myUnisa as our virtual campus. This is an online system that is used to administer, docu- ment and deliver educational material to you and to support engagement with you. Look out for information from your lecturer as well as other Unisa platforms to determine how to access the 4 APM1513/101/0/2026 virtual myUnisa module site. Information on the tools that will be available to engage with your lecturer and fellow students to support your learning will also be communicated via various platforms. We encourage you to log on to the module site on myUnisa regularly (at least twice a week). (APM1513-26-Y). Because this is a fully online module, you will need to use myUnisa to study and complete the learning activities. Visit the website for APM1513 on my Unisa frequently. The website for your module is APM1513-26-Y. We wish you every success with your studies! 2 MODULE OVERVIEW 2.1 Purpose In this module, students will learn to master and apply the following aspects of the numerical solution of systems of linear equations: the method of least squares; linear programming (simplex method); eigenvalues, eigenvectors, diagonalisation as well as some miscellaneous applications. 2.2 Outcomes The broad outcomes for this module are to: 2.2.1 Install GNU Octave or Matlab on a computer or Laptop and to know how create, edit, and save GNU Ocatave .m-files. 2.2.2 Use GNU Octave or Matlab to do simple matrix manipulation. 2.2.3 Use and incorporate the programming loop concepts like i.e. ”for loop”, ”if” statement, also write small computer codes for solving basic systems of linear equations computationally using either GNU Octave or Matlab software. 2.2.4 Plot mathematical surface functions on Octave or Matlab in 2 and 3 dimensions and also how to solve a given system of equations in a matrix form X = A \\ b . 2.2.5 Use the numerical algorithms i.e. Gause, Gause-Seidel, and linear iterative methods to solve systems of equations of any dimensions but less than 4. 2.2.6 Compile computer codes to find and plot best fits graphs/lines from a given a set of data i.e. population data for example. Also, distinguish between an overdetermined system, underdetermined, and inconsistent systems. 2.2.7 Compile computer codes to calculate eigenvalues and eigenvectors using the GNU Octave command eig and be able to also use the power methods to the same. Also know and understand the linear programing GNU Octave package and how to use it to compile codes. 5 3 CURRICULUM TRANSFORMATION Unisa has implemented a transformation charter that places curriculum transformation high on the teaching and learning agenda. Curriculum transformation includes student-centred scholarship, the pedagogical renewal of teaching and assessment practices, the scholarship of teaching and learning, and the infusion of African epistemologies and philosophies. All of these are being phased in at both programme and module levels. As a result of this, you will notice a marked change in the teaching and learning strategy implemented by Unisa, together with the way in which the content is conceptualised in your modules. We encourage you to embrace these changes during your studies at Unisa, responsively and within the framework of transformation. 4 LECTURER(S) AND CONTACT DETAILS 4.1 Lecturer(s) The primary lecturer for this module is: Dr Y Sithole Department: Mathematical Sciences Telephone: 011 670 9147 E-mail: sithoy@unisa.ac.za The secondary lecturer for this module is: Prof JM Manale Department: Mathematical Sciences Telephone: 011 471 2912 E-mail: manaljm@unisa.ac.za A notice will be posted on myUnisa if there are any changes and/or an additional lecturer is appointed to this module. 4.2 Department You can contact the Department of Mathematical Sciences as follows: Department of Mathematical Sciences Departmental Secretary: 011 670 9147 (RSA) +27 11 670 9147 (International) e-mails: mathsciences@unisa.ac.za or swanemm@unisa.ac.za 4.3 University Contact addresses of the various administrative departments appear on the Unisa website: http://www.unisa.ac.za/sites/corporate/default/Contact-us/Student-enquiries Please include the student number in all correspondence. Whenever you contact a lecturer via e-mail, please include your student number in the subject line to enable the lecturer to help you more effectively. 6 APM1513/101/0/2026 5 RESOURCES 5.1 Prescribed book(s) There is NO prescribed textbook for this module. All the material is contained in the study guide. Please refer to the list of official booksellers and their addresses in the Study @ Unisa brochure. Prescribed books can be obtained from the University’s official booksellers. If you have difficulty in locating your book(s) at these booksellers, please contact the Prescribed Book Section at Tel: 012 429-4152 or e-mail vospresc@unisa.ac.za. 5.2 Recommended book(s) The following are publications that you may consult in order to broaden your programming knowledge of APM1513. • B.D. Hahn Essential MATLAB for Scientists and Engineers (Pearson Education South Africa, Cape Town, 2002) • Ford, William. Numerical Linear Algebra with Applications: Using MATLAB and Octave. Academic press, 2014. • Gururajan, M. P. ”Optimization using GNU Octave.” (2015). • Boyd, Stephen, and Lieven Vandenberghe. Introduction to applied linear algebra: vectors, matrices, and least squares. Cambridge university press, 2018. The following books are also available at the Unisa Library. However, there is a limited number of copies of these books. • Anton, Howard and Rorres, Chris: Elementary Linear Algebra; Applications Version, (10th edition, 2011), John Wiley & Sons, Inc. • Cullen, Charles G.: Matrices and Linear Transformations , Addison-Wesley, Reading, MASS., 1972. • Grossman, Stanley I.: Elementary Linear Algebra (any edition), Wadsworth Publishing Co.,Belmont, CA., 1991. • Johnson, Lee W.: Introduction to Linear Algebra (2 nd or earlier editions), Addison-Wesley, Reading, MASS., 1989. • Knopp, Paul J.: Linear Algebra, an Introduction , Hamilton Publishing Co., Santa Barbara, CALIF., 1974. • Nicholson, W.K.: Linear Algebra with Applications (3 rd edition), PWS Publishing Company, Boston. 7 • NOTE: Do not feel that you should study from these books, simply because we have provided you with this list. Sometimes, however, if one really gets bogged down on a particular section or part of the work, a different presentation might just be what is needed to get going again. Recommended books can be requested online, via the Library catalog. 5.3 E-reserves E-reserves can be downloaded from the Library catalog. More information is available at: http://oasis.unisa.ac.za/search/r 5.4 Library services and resources The Unisa Library offers a range of information services and resources and has made numerous library guides available at http://libguides.unisa.ac.za Recommended guides • For brief information on the library, go to https://www.unisa.ac.za/library/libatglance • For more detailed library information, go to http://www.unisa.ac.za/sites/corporate/default/Library • For Frequently Asked Questions, go to https://www.unisa.ac.za/sites/corporate/default/Library/Frequently-Asked-Questions • For research support and services such as the Personal Librarian service and the literature search request (on your research topic) service, offered by the Information Search Librarian, go to http://www.unisa.ac.za/sites/corporate/default/Library/Library-services/Research-support. • For library training for undergraduate students, go to https://www.unisa.ac.za/sites/corporate/default/Library/Library-services/Training • For lending Services, go to https://www.unisa.ac.za/sites/corporate/default/Library/Library-services/Lending-services • For services for Postgraduate students, go to https://www.unisa.ac.za/sites/corporate/default/Library/Services-for-Postgraduates 8 APM1513/101/0/2026 • For support and Services for students with disabilities, go to https://www.unisa.ac.za/sites/corporate/default/Library/Services-for-students-with-special-needs • For library technology support, go to https://libguides.unisa.ac.za/techsupport • For information on finding and using library resources and tools, go to http://libguides.unisa.ac.za/Research skills • For an A-Z list of library databases, go to https://libguides.unisa.ac.za/az.php Important contact information: • Technical problems encountered in accessing library online services: Lib-help@unisa.ac.za • General library-related queries: Library-enquiries@unisa.ac.za • Queries related to library fines and payments: Library-fines@unisa.ac.za • Interlibrary loan service for postgraduate students: libr-ill@unisa.ac.za • Literature Search Service: Lib-search@unisa.ac.za • Services and resources available to clients living with disabilities: lib-disability@unisa.ac.za • Library book requests from, and book deliveries to Correctional Services: lib-corrections@unisa.ac.za • Social media channels: Facebook: UnisaLibrary and X (Twitter): @UnisaLibrary To view the Library orientation video - please click on the link below. Unisa Library and Information Services 6 STUDENT SUPPORT SERVICES 6.1 Study @ Unisa Publication and myModules The Study @ Unisa online publication is available on my Unisaat: www.unisa.ac.za/brochures/studies It contains important information and guidelines for successful studies through Unisa. If you need assistance with the myModules system, you are welcome to use the following contact details: 9 • Toll-free landline: 0800 00 1870 (Select option 07 for myModules) • E-mail: mymodules22@unisa.ac.za or myUnisaHelp@unisa.ac.za You can access and view short videos on topics such as how to view your calendar, how to access module content, how to view announcements for modules, how to submit assessments and how to participate in forum activities by visiting: https://dtls-qa.unisa.ac.za/course/view.php?id=32130 Registered Unisa students receive a free myLife e-mail account. Important information, notices and updates are sent exclusively to this account. Please claim your e-mail account immediately after registering at Unisa by following this link: myLifeHelp@unisa.ac.za . Note that it can take up to 24 hours for your account to be activated after you have claimed it. Your myLife account is the only e-mail account recognised by Unisa for official correspondence between you and the University and it will remain your official primary e-mail address on record at Unisa. You remain responsible for the management of this e-mail account. 6.2 The Unisa First-Year Experience Programme Many students find the transition from school education to tertiary education stressful and this is often true for students enrolling at Unisa for the first time. Unisa is a dedicated open dis- tance and e-learning institution and is very different from face-to-face/contact institutions. It is a mega university, and all its programmes are offered through either blended learning or fully online learning. For these reasons, we offer first-time students additional/extended support to help them navigate the Unisa teaching and learning journey seamlessly and with little difficulty and few barriers. Unisa’s First-Year Experience (FYE) Programme has been specially designed to provide you with prompt and helpful information about the services that the institution offers. The following FYE services are currently available: 10 APM1513/101/0/2026 6.3 Using Recognition of Prior Learning (RPL) to apply for module credit within a qualifica- tion Now that you are a registered student, you are advised to familiarise yourself with the learning outcomes of the module or modules you have chosen. If you have been exposed to those learning outcomes for three years or more - either through work experience or other involvement - you can apply to be exempted from completing assignments and writing examinations. As part of your application for this exemption, you will be required to compile a portfolio of evidence substantiating how your experience is equivalent to the learning outcomes. The diagram below shows the steps involved in obtaining recognition of prior learning (RPL) for module credit. For more information on the process, RPL fees, and the contact details of your college RPL coordinator, visit the Unisa website: www.unisa.ac.za/rpl 11 6.4 Compulsory Completion of the Academic Integrity Course Students registered for NQF 5 - 8 programmes are required to complete the Academic In- tegrity Course annually. Academic integrity represents our commitment to and demonstration of honest and ethical behaviour in academic settings. Academic integrity is a foundational principle at Unisa, underpinning the quality and credibility of our qualifications. At its core, the Academic Integrity Course is designed to advance values such as discipline, fairness, honesty and commitment, which are important to your success as a student and your future as a professional. The course can be accessed at: https://mooc.unisa.ac.za/. Use your myLife-credentials to log in. For new students If you are a new student enrolling for the first time in 2026, you must complete the full Academic Integrity Course as part of your orientation. This course is designed to instil academic values and equip you with the necessary skills required to uphold integrity throughout your academic journey. 12 APM1513/101/0/2026 The course comprises six comprehensive study units: 1. Unisas values and mission on academic integrity principles 2. Defining academic integrity in an open distance learning (ODL) environment 3. Basic skills in academic writing 4. Ethical usage of artificial intelligence 5. Unisa’s processes in identifying academic misconduct and detection tools For returning students Those of you who completed the Academic Integrity Course in 2025 are required to complete the refresher version of the course in 2026. This course serves to reinforce the principles and practices of academic integrity. While it is a shortened version of your previously completed Academic Integrity Course, it remains compulsory and must be completed within the specified period. The refresher course aims to: • Reinforce understanding of academic integrity principles • Update you on any changes in policies or practices • Ensure continued commitment to ethical academic conduct For both new and returning students, it is important to complete the respective versions of the Academic Integrity Course within the specified periods. Unisa remains steadfast in its commitment to fostering a culture of honesty, fairness and responsibility. Non-compliance may lead to academic consequences as outlined in Unisa’s Student Rules. For support, contact mymodule22@unisa.ac.za 7 STUDY PLAN Your study plan of the module is outlined below. Please refer to the general management and planning skills guidelines in the Studies @ Unisa Brochure for further details. The study plan below shows the content to be covered during specific periods of the year in terms of the broad concepts or topics, the study guide units and the prescribed book chapters. Your studies will be largely guided by the tutorial discussions and learning activities, and the assignments, which are all based on the same study plan. You should therefore participate as much as possible in the 13 tutorial discussions and complete assignments and the learning or self-assessment activities linked to each topic in order to do well in the assignments, and for you to be well prepared for the final examination. NB Note that at least on assignment is compulsory. Note that Assignment 1 is the first compulsory assignment and it might include other part of the units in the prescribed book or the study guide, please don’t be surprised to see questions from different units. You need to submit more than one assignment to get admission into the exam. Month Activities January-April Read Tutorial Letter 101(this letter). Read pp 1 to 6 of the Study Guide and Study Units 1, 2, 3 & 4. Make sure you have all your study material as well as other items such as assignment covers. Prepare for Assignment 1. Submit Assignment 1 (QUIZ). May Study Units 1& 2 of the Study Guide. Prepare for Assignment 2. Submit Assignment 2. June Study Units 2, 3 & 4 of the Study Guide. Prepare for Assignment 3. July Submit Assignment 3. Study Units 4 & 5 of the Study Guide. Prepare for Assignment 4. August Submit Assignment 4. Study Unit 6 and the rest of the Chapters and revise your work. Prepare for the exam. August-September Prepare for the Exam. Work through the solutions of Assignments 1 to 4 and learn from your mistakes. September-October Study for the Final Examination. October-November Write the exam. December ENJOY YOUR HOLIDAYS! 8 HOW TO STUDY ONLINE? 8.1 What does it mean to study fully online? Studying fully online modules differs completely from studying some of your other modules at Unisa. • All your study material and learning activities for online modules are designed to be delivered online on myUnisa . • All your assignments (assessments) must be submitted online . This means that you will do all your activities and submit all your assignments on myUnisa. In other words, you do NOT post your assignments to Unisa using the South African Post Office. You do NOT send assignments by email as such will not be considered for marking or a zero mark will be awarded. 14 APM1513/101/0/2026 • All communication between you and the University happens online. Lecturers will communicate with you via e-mail and Chats , Blogs , and use the Announcements , the FAQs , the Discussion Forums and the Questions and Answers tools. You can also use all of these platforms to ask questions and contact your lecturers. 8.2 myUnisa Tools It is very important that you log in to myUnisa regularly. We recommend that you log in at least once a week to do the following: • Check for new announcements on the module site. You can also set your myLife e-mail account so that you receive the announcement e-mails on your cellphone. • Read the notices on the myUNISA landing page. 9 ASSESSMENT 9.1 Assessment criteria There are FOUR assignments and one examination for this module. Examination admission. Please note that lecturers are not responsible for examination admission, and ALL enquiries about examination admission should be directed by e-mail to exams@unisa.ac.za You will be admitted to the examination if and only if at least one assignment reaches the Assignment Section before the exam admission date and also obtain a minimum of 40 % in the assignments combined Note that your marks for the assignments contribute 20 % to your final mark (the remaining 80 % is contributed by the final examinations). 9.2 Assessment plan • To complete this module, you will be required to submit four assessments. • All information about when and where to submit your assessments will be made available to you via the myModules site for your module. • Due dates for assessments, as well as the actual assessments are available on the myModules site for this module. • To gain admission to the examination, you will be required to submit at least one assignment and meet the above requirement. 15 • To gain admission to the examination, you also need to obtain a year mark average of 40% for the assignments. • The assignment weighting for the module is 20 %. • You will receive examination information via the myModules sites. Please watch out for announcements on how examinations for the modules for which you are registered will be conducted. • The examination will count 80% towards the final module mark. Please note that this module has a total of FOUR assignments consisting of THREE written assign- ments (02-04) and ONE of which is a Quiz (multiple–choice) assignment (Assignment 01). The questions for the assignments are given online on the module site. For each assignment there is a FIXED CLOSING DATE ; the date by which the assignment must reach the university (the student must submit the assignment online). Solutions for each assignment will be uploaded on myUnisa under Additional Resources or shared via Announcements, few days after each assignment set has been marked and they will be labelled Tutorial Letters (202, 203,& 204). Late assignments will be marked, provided they were submitted within the cut of time. Written assignment Not all the questions in the written assignment will be marked and you will also not be informed beforehand which questions will be marked. The reason for this is that Applied Linear Algebra is learnt by “doing GNU Octave programing”, and it is therefore extremely important to do as many activities & exercises as possible. You can self assess the questions that are not marked by comparing your solutions with the solutions in the tutorial letter that will be sent as an announcement. Note that at least one assignment and 40 % is the compulsory rule for admission to the examination and must reach (submit online) us by the due date. The assignments have a combined 20% contribution towards the final mark. The Written assignments can only be submitted online electronically through myUnisa. The feedback to assignments 02-04 will be uploaded on myUnisa using a Tutorial Letter 202 - 204. Feedback to Assignments Tutorial Letters 02 202 03 203 04 204 16 APM1513/101/0/2026 Please note that there is no feedback to Assignment 01. The assessments together with the contributions of assignments to the year mark are as follows; Assignment Method of assessment Outcomes covered in assessment Weight (%) Due date 01 online See the Assessment Plan 5 see myUnisa 02 Written See the Assessment Plan 5 see myUnisa 03 Written See the Assessment Plan 5 see myUnisa 04 Written See the Assessment Plan 5 see myUnisa Total See the Assessment Plan 20 NB: Because this is an online module, the assignments are not provided in this tutorial letter. Instead, the assignments are provided online as they become due. You will see and access them when you go online. 9.3 Assessment/Assignment due dates • No assessment/assignment due dates are included in this tutorial letter. • Assessment/assignment due dates will be made available to you on the myUnisa landing page for this module. We envisage that the due dates will be available to you on registration. • Please start working on your assessments as soon as you register for the module. • Log on to the myUnisa site for this module to obtain more information on the due dates for the submission of the assessments. 9.4 Submission of assessments/assignments • Unisa, as a CODeL institution, is moving towards becoming an online institution. You will see, therefore, that all your study material, assessments and engagements with your lecturer and fellow students will take place online. To facilitate this, we use myUnisa as our virtual campus. • The myUnisa virtual campus will offer students access to the myModules site , where learning material is available online and where assessments should be completed. Together, myUnisa and myModules form an online system that is used to administer, document and deliver educational material to you and to support engagement between you and Unisa’s academics. • The myUnisa platform can be accessed via https://my.unisa.ac.za . Click on the myModules 2026 button to access the online sites for the modules that you are registered for. 17 • The University undertakes to communicate clearly and as frequently as is necessary to ensure that you get the most out of using myUnisa. Please access the Announcements on your myModules site regularly, as this is where we will post important information. • When you access your myModules site for the module/s you are registered for, you will see a welcome message posted by your lecturer. Below the welcome message you will see the assessment shells for the assessments that you need to complete. Some assessments may be multiple choice, some may be tests or written assessments/assignments, others may be forum discussions and so on. All assessments must be completed on the assessment shells available on the respective module platforms. • To complete quiz assessments, please log on to the module site where you need to complete the assessment. Click on the relevant assessment shell (Assessment 1, Assessment 2, etc.). There will be a date on which the assessment will open for you. When the assessment is open, access the quiz online and complete it within the time available to you. Quiz assessment questions are not included in the Tutorial Letter 101 and are only made available online. You must therefore access the quiz online and complete it online where the quiz has been created. • It is not advisable to use a cell phone to complete the quizzes. Please use a desktop computer, tablet or laptop for this task. Students who use cellphones find it difficult to navigate the Online Assessment tool on the small screen and often struggle to navigate between questions and successfully complete the quizzes. In addition, cellphones are more vulnerable to dropped internet connections than other devices. If at all possible, please do not use a cellphone for this type of assessment. • For written assessments/assignments, please note the due date by which your work must be submitted. Ensure that you follow the guidelines given to complete the assessment/assignment. Click on the submission button on the relevant assessment shell on myModules. You will then be able to upload your written assessment to the myModules site for the modules that you are registered for. Before you finalise the upload, double-check that you have selected the correct file for uploading. Remember, no marks can be awarded for incorrectly submitted assessments/assignments. 9.4.1 Types of assignments and descriptions All assignments are defined as either optional, mandatory, compulsory, or elective. • Elective assignments - If you do not submit this assignment, you get no mark for it. - Only the best results of the required submissions will count towards your year mark. • Mandatory assignments - The mark for this assignment contributes to the year mark. 18 APM1513/101/0/2026 - If you do not submit a mandatory assignment, no mark is awarded and the year mark is calculated accordingly. You will therefore forfeit the marks attached to this assignment when the final mark for the module is calculated. • Compulsory assignments - If you do not submit a compulsory assignment, the result on your academic record will be absent . • Optional assignments - You are encouraged to do optional assignments to benefit your learning. 9.5 The assessments/assignments As indicated in section 9.2, you need to complete 4 assessments for this module, three written assessments and one multiple–choice (Quiz) assessment. Details of the tasks set will appear on the assessments/assignments themselves. There are no assignments included in this tutorial letter . Assignments and due dates will be made available to you on myModules for this module. We envisage that the due dates will be available to you upon registration. Make sure that you do the correct assignments. Solutions will be made available on myUnisa via announcements before the examination date. 9.5.1 Quiz or Multiple - Choice assignments There is only one MCQ assignment in this module: Assignment 1. Answers for the MCQ questions are entered directly on myUNISA after accessing the assignment on the module site. Assignment 1 can be timed. Please make sure to access it only when you are ready to do so. Make sure you master all the basic concepts assessed in topics related to Assignment 1, before you attempt to access it. You will only be given few attempts (usually 2 attempts at most), so use them well. 9.5.2 Written Assignment The rules for written assignments are: • Please keep a copy of your answers. • Submit answers in numerical order. • Keep to the due dates. • Type your assignments, and submit them in pdf format. • Marks may be deducted or not given if answers are scratched out, canceled or not legible enough. 19 Type your answers in the correct order and make sure that every answer is numbered clearly. Make sure that your answers are clear and unambiguous. Use the correct syntax and debug your errors, prior to submitting your solution codes. Also, make sure that you submit both your input codes and all the output(s). Note that we are not only interested in whether you can get the correct answers or outputs, but rather in whether you can formulate your code correctly. Students must submit their own work and not code generated by AI, kindly see Section 10 below which refers to academic dishonesty. Of course, it is a good thing to discuss problems with fellow students. However, where copying has clearly taken place then disciplinary action will be taken in due course. You should submit written assignments electronically via myUnisa. Assignments should not be submitted by e- mail. To submit via myUnisa: Please note that your assignment must be combined in one pdf document. Only one document can be uploaded per assignment. In order to submit your assignment, you need to login into myUnisa with your student number and password then select the module from the drop-down menu on myModules. Scroll down and click on the assessment number you want to submit. Follow the instructions on the screen to submit your pdf document for grading. Make sure to click on submit after uploading your answer file. Note that your marked assignment will be available on myUnisa for viewing. Note that Assignments 2-4 are written assignments. 9.6 Other assessment methods There are no other assessment methods for this module APM1513 except the examination (see details in Subsection 9.7 below). 9.7 The examination Examination information and details on the format of the examination will be made available to you online via the myUnisa site. Look out for information from your lecturer and e-tutors (if availed), as well as for communication from the University If you are registered for this module in 2026 then you will write the examination in October/November 2026. Below are some of the exam rules: 1. The exam is a three-hour (closed-book) online examination, wherein students are not permitted to search for solutions on the web nor use online chatbots. 2. The use of a non-programmable pocket calculator is allowed during examination. 20 APM1513/101/0/2026 3. Do not submit a zip file(s) or link(s). 4. Students who have not utilised the IRIS invigilation or proctoring tools will be subjected to disciplinary processes. 5. For examinations which use the IRIS invigilation system, IRIS must be recording with the student’s full facial image displaying throughout the duration of the examination until the submission of the examination script. 6. Students suspected of dishonest conduct during the examinations will be subjected to dis- ciplinary processes. UNISA has a zero tolerance for plagiarism and/or any other forms of academic dishonesty. 7. Queries that beyond Unisa’s control include: a. Personal network or service provider issues b. Load shedding/Limited space on personal computer c. Crashed computer d. Non-functioning cameras or web cameras. e. Using work computers that block access to myExams site (work firewall challenges) f. Unlicensed software (e.g., license expires during exams) 8. Students experiencing technical challenges should contact the SCSC 080 000 1870 or email Examenquiries@unisa.ac.za or refer to Get-Help for the list of additional contact numbers. Communication received from your myLife account will be considered. The examination questions will made out of the exam scope, and it will be slightly similar to the questions covered in the study guide, in the online lessons and in the assignments. 9.8 Invigilation/proctoring Since 2020, Unisa has been conducting all its assessments online. Given the stringent requirements imposed by professional bodies, as well as increased solicitation of Unisa’s students by third parties to unlawfully assist them with the completion of assignments and examinations, the University is obliged to assure the integrity of its assessment by using various proctoring tools: Turnitin, Moodle Proctoring, The Invigilator app and IRIS. These tools authenticate your identity and flag suspicious behaviour to assure the credibility of your responses during assessments. The description below is for your benefit as you may encounter any or all of these in your registered modules: Turnitin is plagiarism software that facilitates checks for originality in your submissions against internal and external sources. Turnitin assists in identifying academic fraud and ghostwriting. You are expected to submit typed responses when using the Turnitin software. The Moodle Proctoring The Moodle Proctoring tool is facial recognition software that authenticates your identity during your quiz assessments. This tool requires access to your mobile or laptop camera . You must ensure that your camera is activated in your browser settings prior to starting your assessments. 21 The Invigilator is a mobile application-based service that verifies the identity of an assessment par- ticipant. It detects student dishonesty-by-proxy and ensures that the assessment participant is the student registered for the module concerned. This invigilation tool requires you to download the app from the Google Play Store (Android devices), the Huawei AppGallery (Huawei devices) or the Apple App Store (Apple devices) on your camera-enabled mobile device prior to starting your assessment. IRIS Invigilation software verifies the identity of a student during assessment and provides for both manual and automated facial verification. It can record and review your assessment session and it flags suspicious behaviour for review by an academic administrator. IRIS software requires installation on your webcam-enabled laptop device . Students who are identified and flagged for suspicious or dishonest behaviour arising from the invigilation and proctoring reports will be referred to the disciplinary office for formal proceedings. Supplementary If you are registered for this module in 2026 then you will write the supplementary examination in January/February 2027. During the course of the year, the Examination Section will provide you with information regarding the examination in general, examination websites, examination dates and examination times and that including the supplementary examination. 10 ACADEMIC DISHONESTY 10.1 Plagiarism Plagiarism is the act of taking the words, ideas and thoughts of others and presenting them as your own. It is a form of theft. Plagiarism includes the following forms of academic dishonesty: • Copying and pasting from any source without acknowledging the source, especially AI chatbots. • Not including references or deliberately inserting incorrect bibliographic information. • Paraphrasing without acknowledging the original source of the information. 10.2 Cheating Cheating includes, but is not limited to, the following: • Completing assessments on behalf of another student, copying the work of another student during an assessment, or allowing another student to copy your work. 22 APM1513/101/0/2026 • Using social media (e.g. WhatsApp, Telegram) or other platforms to disseminate assessment information. • Submitting corrupt or irrelevant files, this forms part of examination guidelines • Buying completed answers from so-called ”tutors” or internet sites (contract cheating). For more information about plagiarism, follow the link below: https://www.unisa.ac.za/sites/myunisa/default/Study-@-Unisa/Student-values-and-rules 11 STUDENTS LIVING WITH DISABILITIES Unisa provides equal opportunities for all students. The university respects the rights of students to disclose or not disclose any disability. For more information on services and support offered to students with disabilities, access https://www.unisa.ac.za/sites/corporate/default/Apply-for-admission/Students-with-disabilities The Advocacy and Resource Centre for Students with Disabilities (ARCSWiD) provides an opportu- nity for staff to interact with first-time and returning students with disabilities. You can send an email to ARCSWiD via Arcswid@unisa.ac.za or contact the university using the available numbers: Tel: +27 12 429 6923 / 6924 / 6540 / 3829 / 8668 / 6050 / 2607 or +27 12 441 5470 / 5471 Should your disability require you to have extra time to write the examination it is important to register the disability so that the exam department can make the necessary arrangements. If you are a student with a disability and would like additional support or need additional time for assignments, you are more than welcome to contact your lecturer ( sithoy@unisa.ac.za ) to discuss any assistance that you need. 12 FREQUENTLY ASKED QUESTIONS In addition to the online available FAQs we draft some few Q&A to assist you in this module. Question: Can I get an extension on the due date for my assignments? Answer: Yes, with good valid reasons (especially if you become sick/ill). E-mail lecturer for per- mission. Remember, an extension can impact your exam admission. If there is no assignment submission when the exam department runs the admission program you will not be able to write the exam. 23 Warning: Do not submit an empty or corrupt file. The lecturer will delete such submissions and it will count against you or you may be awarded a zero mark after the submission due date has lapsed. Question: May I use a calculator in the examination? Answer: You can. However, we expect you to do your computations using GNU Octave. Question: Where do I get memorandums for past papers? Answer: No memorandums are supplied, but the lecturer may decide to post some solutions or answers via Announcements or under the Additional Resources folder on myUNISA . Question: What does the letters FC after my module code mean? Answer: FC stands for Financial Cancellation. You may continue your studies and even write the examination, but no results will be released before your student account has been paid in full and the module reinstated. The Study @ Unisa brochure contains an A-Z guide of the most relevant study information. 13 SOURCES CONSULTED The Study Guide was consulted in preparing this tutorial letter. 14 GETTING STARTED: INSTALLATION OF GNU OCTAVE This module is mainly about the use of the mathematical software package GNU Octave or MATLAB, and in order to take the module it is a requirement that • You have regular access to a laptop, for example at home, at work, or at a Unisa Digital Access Centres, • If it is not your own (or Unisa’s) computer, you have permission to install the software GNU Octave or MATLAB onto it. We recommend that you install the latest version, by visiting the GNU Octave website at https://octave.org/download. The latest GNU Octave version that can be downloaded is (10.0.0) and is subject to change or upgrades from time to time. 14.1 Windows Our experience has been that the installation of GNU Octave is easy and straightforward. Just use the link (https://octave.org/download), to install the GNU Octave. It is as simple as that! 14.2 Linux and Mac Versions of GNU Octave for installation on a Linux or Mac machines are also available on the same site (https://octave.org/download). 24 APM1513/101/0/2026 14.3 Unisa Digital Access Centres If you are using a Unisa computer laboratory, you should find that GNU Octave has already been installed and the GNU Octave icon will be on the Desktop. 14.4 MATLAB MATLAB is a commercial (licensed) software product that has to be purchased, whereas GNU Octave is available free of charge . Although there are occasional differences, the syntax of the two programming systems is almost identical. In some advanced, specialized applications we have found that MATLAB was able to solve a problem but GNU Octave was unsuccessful. However, for the introductory purposes of this module, GNU Octave is quite sufficient. Please be aware that there will be minor syntactical and layout differences between MATLAB and the notes in the Study Guide. Otherwise, we strongly suggest that you work entirely with GNU Octave as most examples in the Study Guide are done in the GNU Ocatve language . 15 IN CLOSING Do not hesitate to contact us by e-mail if you are experiencing problems with the content of this tutorial letter or with any academic aspect of the module. We wish you a fascinating and satisfying journey through the learning material, and trust that you will complete the module successfully. If you have started, it’s possible! Dr Y. Sithole – Lecturer for APM1513 Department of Mathematical Sciences 25 ADDENDUM A: Additional Notes and Curriculum Transformation Please note the following important information regarding this module: • It is essential to have a strong grasp of the module’s content to effectively complete assign- ments and solve related problems independently. To support your understanding, video notes will be uploaded to the Additional Resources folder in the main module as well as on the Online Lessons. • In order to fully comprehend the concepts and derive maximum benefit from this course, you have the option to request MS Teams meetings for live discussions with the lecturer. These sessions will include recordings and video notes that will also be shared with your fellow students. • The lecturers for this module will conduct live discussions on MS Teams to facilitate en- gagement and interaction among students. These sessions are designed to enhance your understanding of the concepts. On certain occasions, Zoom may also be utilized for these discussions. • Feedback on assignments will be provided via Announcements. Please note that the discus- sions might occasionally utilize MS Teams or Zoom. • Throughout the year, glossaries of terms in African languages may be made available to you. These glossary files will be accessible exclusively online via the main module site APM1513-26-Y. Please keep these notes in mind to ensure a comprehensive understanding of the module and to make the most of the available resources and opportunities for engagement. ANNEXURE A: GLOSSARY OF TERM The Glossary of terms will be uploaded online only. Unisa ©2026 26",
-    "assessments": [
-      {
-        "title": "exam",
-        "type": "Exam",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Test",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Test 1",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "ASSESSMENT",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 2",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 3",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 4",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "ASSESSMENT 9",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 01",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "test",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "task",
-        "type": "Task",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 1",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      }
-    ],
-    "learningUnits": [
-      {
-        "title": "Getting started with the computer softwareTIME PERIOD: 10 hours approximately RESOURCE...",
-        "description": ""
-      },
-      {
-        "title": "Introduction to ProgrammingThis unit is a summary of the features of the Octave progra...",
-        "description": ""
-      },
-      {
-        "title": "Overdetermined and underdetermined systems of linear equationsLEARNING OUTCOMESAt the ...",
-        "description": ""
-      },
-      {
-        "title": "Linear programmingLEARNING OUTCOMESAt the end of this Study Unit, you should be able t...",
-        "description": ""
-      }
-    ],
-    "tasks": [],
-    "color": 0
-  },
-  {
-    "code": "MAT2612",
-    "title": "Introduction to Discrete MathematicsThe Lecturer for this module isMr M KgaroseT",
-    "period": "Year — 2026",
-    "lecturer": "for this module isMr M KgaroseTel",
-    "email": "kgarom@unisa.ac.zaPlease",
-    "tel": "011 670 9147",
-    "description": "myModules Course search FYE1500-26-S1 APM1513-26-Y APM2616-26-Y COS1521-26-Y COS2611-26-Y COS2614-26-Y COS3751-26-Y COS3761-26-Y MAT2612-26-Y",
-    "assessments": [
-      {
-        "title": "ASSESSMENT",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "exam",
-        "type": "Exam",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 1",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 2",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 3",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 4",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "ASSESSMENT 9",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 01",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "test",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      }
-    ],
-    "learningUnits": [
-      {
-        "title": "Fundamentals  URL",
-        "description": ""
-      },
-      {
-        "title": "Logic  URL",
-        "description": ""
-      },
-      {
-        "title": "Counting  URL",
-        "description": ""
-      },
-      {
-        "title": "Relations & Digraphs  URL",
-        "description": ""
-      },
-      {
-        "title": "Functions  URL",
-        "description": ""
-      }
-    ],
-    "tasks": [],
-    "color": 1
-  },
-  {
-    "code": "COS2614",
-    "title": "starts where COS1512/COS1512 ended and we explore object-oriented concepts and p",
-    "period": "Year — 2026",
-    "lecturer": "via your",
-    "email": "Aronaronl@unisa.ac.za",
-    "tel": null,
-    "description": "myModules Course search FYE1500-26-S1 APM1513-26-Y APM2616-26-Y COS1521-26-Y COS2611-26-Y COS2614-26-Y COS3751-26-Y COS3761-26-Y MAT2612-26-Y",
-    "assessments": [
-      {
-        "title": "ASSESSMENT",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "exam",
-        "type": "Exam",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 1",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz 10",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 3",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "ASSESSMENT 9",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 30",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "test",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "quiz",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      }
-    ],
-    "learningUnits": [],
-    "tasks": [],
-    "color": 2
-  },
-  {
-    "code": "APM2616",
-    "title": "Computer AlgebraThe Lecturer for this module isMr M KgaroseTel: 0116709169email:",
-    "period": "Year — 2026",
-    "lecturer": "for this module isMr M KgaroseTel",
-    "email": "kgarom@unisa.ac.zaPlease",
-    "tel": "0000000000",
-    "description": "myModules Course search FYE1500-26-S1 APM1513-26-Y APM2616-26-Y COS1521-26-Y COS2611-26-Y COS2614-26-Y COS3751-26-Y COS3761-26-Y MAT2612-26-Y",
-    "assessments": [
-      {
-        "title": "Exam",
-        "type": "Exam",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 1",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "test",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "test 2",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      }
-    ],
-    "learningUnits": [],
-    "tasks": [],
-    "color": 3
-  },
-  {
-    "code": "COS1521",
-    "title": "Students,Welcome to the myUnisa Learning Management System (LMS) at the home pag",
-    "period": "Year — 2026",
-    "lecturer": "details that you can use to enquire abo",
-    "email": "nxumals@unisa.ac.za",
-    "tel": null,
-    "description": "myModules Course search FYE1500-26-S1 APM1513-26-Y APM2616-26-Y COS1521-26-Y COS2611-26-Y COS2614-26-Y COS3751-26-Y COS3761-26-Y MAT2612-26-Y",
-    "assessments": [
-      {
-        "title": "ASSESSMENT",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "exam",
-        "type": "Exam",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 2",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 4",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 6",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 8",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 10",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 12",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 14",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 16",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 18",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "ASSESSMENT 9",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz 20",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz 30",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "test",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "quiz",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "task",
-        "type": "Task",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 4",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 1",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 4",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      }
-    ],
-    "learningUnits": [
-      {
-        "title": "Data Structure  Lesson",
-        "description": ""
-      }
-    ],
-    "tasks": [],
-    "color": 4
-  },
-  {
-    "code": "COS2611",
-    "title": "WEBINAR 1 BigBlueButton",
-    "period": "Year — 2026",
-    "lecturer": "site support",
-    "email": "vdmerwer@unisa.ac.zaBefore",
-    "tel": null,
-    "description": "myModules Course search FYE1500-26-S1 APM1513-26-Y APM2616-26-Y COS1521-26-Y COS2611-26-Y COS2614-26-Y COS3751-26-Y COS3761-26-Y MAT2612-26-Y",
-    "assessments": [
-      {
-        "title": "ASSESSMENT 16",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "ASSESSMENT 9",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "exam",
-        "type": "Exam",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz 4",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment 1",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "test",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Exam",
-        "type": "Exam",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 2",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assessment",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 3",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 4",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      }
-    ],
-    "learningUnits": [],
-    "tasks": [],
-    "color": 5
-  },
-  {
-    "code": "COS3751",
-    "title": "Techniques of Artificial Intelligence",
-    "period": "Year — 2026",
-    "lecturer": "will be available in the Additional",
-    "email": "ndlovl1@unisa.ac.za",
-    "tel": null,
-    "description": "myModules Course search FYE1500-26-S1 APM1513-26-Y APM2616-26-Y COS1521-26-Y COS2611-26-Y COS2614-26-Y COS3751-26-Y COS3761-26-Y MAT2612-26-Y",
-    "assessments": [
-      {
-        "title": "assessment",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Exam",
-        "type": "Exam",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 1",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 2",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      }
-    ],
-    "learningUnits": [],
-    "tasks": [],
-    "color": 0
-  },
-  {
-    "code": "COS3761",
-    "title": "an interesting module and will enjoy spending time on it.The place to start is T",
-    "period": "Year — 2026",
-    "lecturer": "your lecturer is by email",
-    "email": "vallas@unisa.ac.zaPlease",
-    "tel": "011 471 2381",
-    "description": "myModules Course search FYE1500-26-S1 APM1513-26-Y APM2616-26-Y COS1521-26-Y COS2611-26-Y COS2614-26-Y COS3751-26-Y COS3761-26-Y MAT2612-26-Y",
-    "assessments": [
-      {
-        "title": "ASSESSMENT 14",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "exam",
-        "type": "Exam",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "ASSESSMENT 9",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 3",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment 1",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "test",
-        "type": "Test",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "quiz",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Quiz",
-        "type": "Quiz",
-        "due": null,
-        "note": ""
-      }
-    ],
-    "learningUnits": [
-      {
-        "title": "Propositional Logic  Page",
-        "description": ""
-      },
-      {
-        "title": "Predicate Logic  Page",
-        "description": ""
-      },
-      {
-        "title": "Modal Logic  Page",
-        "description": ""
-      }
-    ],
-    "tasks": [],
-    "color": 1
-  },
-  {
-    "code": "FYE1500",
-    "title": "26-S1",
-    "period": "Year — 2026",
-    "lecturer": "site support",
-    "email": "dawoone@unisa.ac.za",
-    "tel": null,
-    "description": "myModules Course search FYE1500-26-S1 APM1513-26-Y APM2616-26-Y COS1521-26-Y COS2611-26-Y COS2614-26-Y COS3751-26-Y COS3761-26-Y MAT2612-26-Y",
-    "assessments": [
-      {
-        "title": "assessment",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assignment",
-        "type": "Assignment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 1",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 2",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      },
-      {
-        "title": "Assessment 4",
-        "type": "Assessment",
-        "due": null,
-        "note": ""
-      }
-    ],
-    "learningUnits": [],
-    "tasks": [],
-    "color": 2
-  }
+
+{
+  "code": "APM1513",
+  "title": "Applied Linear Algebra",
+  "period": "Year — 2026",
+  "lecturer": "Dr Y Sithole",
+  "email": "sithoy@unisa.ac.za",
+  "tel": "011 670 9147",
+  "description": "In this module, students will learn to master and apply the following aspects of the numerical solution of systems of linear equations: the method of least squares; linear programming (simplex method); eigenvalues, eigenvectors, diagonalisation as well as some miscellaneous applications.\n\nOutcomes:\n1. Install GNU Octave or Matlab and create, edit, and save .m-files.\n2. Use GNU Octave or Matlab for simple matrix manipulation.\n3. Use programming loop concepts (for loop, if statement) and write code for solving basic systems of linear equations.\n4. Plot mathematical surface functions in 2 and 3 dimensions and solve systems of equations in matrix form X = A\\b.\n5. Use numerical algorithms (Gauss, Gauss-Seidel, linear iterative methods) to solve systems of equations.\n6. Compile code to find and plot best-fit graphs from data; distinguish overdetermined, underdetermined, and inconsistent systems.\n7. Compile code to calculate eigenvalues and eigenvectors using the eig command and power methods; use the linear programming GNU Octave package.",
+  "assessments": [
+    { "title": "Assessment 1", "type": "Assessment", "due": "2026-05-06", "note": "Quiz (multiple choice) — Study Units 1, 2 & 3" },
+    { "title": "Assessment 2", "type": "Assessment", "due": "2026-06-08", "note": "Written assignment — Study Units 2, 3 & 4" },
+    { "title": "Assessment 3", "type": "Assessment", "due": "2026-07-06", "note": "Written assignment — Study Units 3, 4 & 5" },
+    { "title": "Assessment 4", "type": "Assessment", "due": "2026-08-11", "note": "Written assignment — Study Units 4, 5 & 6" },
+    { "title": "Final Exam", "type": "Exam", "due": null, "note": "October/November 2026 — covers all study units" }
+  ],
+  "learningUnits": [
+    { "title": "Study Unit 1: Getting started with the computer software (Octave)", "description": "Installing and running GNU Octave/MATLAB; using m-files; output from an Octave session; the Help facility. (~10 hours)" },
+    { "title": "Study Unit 2: Introduction to programming with Octave", "description": "Scalar variables; matrices and vectors; matrix manipulation; control commands (loops, if statements); functions; graphics. (~30 hours)" },
+    { "title": "Study Unit 3: Use of Octave to solve linear systems of equations", "description": "Gaussian elimination; solving Ax=b; direct and iterative methods including Gauss-Seidel; condition numbers. (~15 hours)" },
+    { "title": "Study Unit 4: Overdetermined and underdetermined systems of linear equations", "description": "Identification of overdetermined and underdetermined systems; method of least squares; curve fitting. (~15 hours)" },
+    { "title": "Study Unit 5: Eigenvalues, eigenvectors and matrix diagonalization", "description": "Mathematical results for eigenvalues/eigenvectors; calculation using Octave eig command; power methods; diagonalization. (~15 hours)" },
+    { "title": "Study Unit 6: Linear programming", "description": "Basic ideas of linear programming; the simplex method; solving LP problems using GNU Octave. (~15 hours)" }
+  ],
+  "tasks": [
+    { "title": "Study Unit 1: Getting started with the computer software (Octave)", "description": "Installing and running GNU Octave/MATLAB; using m-files; output from an Octave session; the Help facility. (~10 hours)" },
+    { "title": "Study Unit 2: Introduction to programming with Octave", "description": "Scalar variables; matrices and vectors; matrix manipulation; control commands (loops, if statements); functions; graphics. (~30 hours)" },
+    { "title": "Study Unit 3: Use of Octave to solve linear systems of equations", "description": "Gaussian elimination; solving Ax=b; direct and iterative methods including Gauss-Seidel; condition numbers. (~15 hours)" },
+    { "title": "Study Unit 4: Overdetermined and underdetermined systems of linear equations", "description": "Identification of overdetermined and underdetermined systems; method of least squares; curve fitting. (~15 hours)" },
+    { "title": "Study Unit 5: Eigenvalues, eigenvectors and matrix diagonalization", "description": "Mathematical results for eigenvalues/eigenvectors; calculation using Octave eig command; power methods; diagonalization. (~15 hours)" },
+    { "title": "Study Unit 6: Linear programming", "description": "Basic ideas of linear programming; the simplex method; solving LP problems using GNU Octave. (~15 hours)" }
+  ],
+  "color": 0
+},
+
+{
+  "code": "MAT2612",
+  "title": "Introduction to Discrete Mathematics",
+  "period": "Year — 2026",
+  "lecturer": "Mr M Kgarose",
+  "email": "kgarom@unisa.ac.za",
+  "tel": "+27 11 670 9169",
+  "description": "This module introduces students to the fundamental concepts of discrete mathematics. It focuses on propositional logic, proof techniques (including mathematical induction), counting methods such as permutations, combinations, and the pigeonhole principle, as well as relations, digraphs, functions, and ordered structures like lattices and Boolean algebras.\n\nOutcomes:\n1. Prove identities and properties using mathematical induction.\n2. Solve counting problems using the multiplication principle, sum rule, permutations, combinations, and the pigeonhole principle.\n3. Draw directed graphs and matrices of relations; apply Warshall's algorithm; classify equivalence relations.\n4. Determine properties of functions (injective, surjective, bijective, invertible); use Big-O notation; work with permutations in cycle notation.\n5. Draw Hasse diagrams; identify lattices and Boolean algebras; construct truth tables and Karnaugh maps.",
+  "assessments": [
+    { "title": "Assessment 1", "type": "Assessment", "due": "2026-05-25", "note": "Compulsory — Chapters 1, 2 & 3 (Sets, Logic, Counting)" },
+    { "title": "Assessment 2", "type": "Assessment", "due": "2026-06-22", "note": "Written — Chapter 4 (Relations and Digraphs)" },
+    { "title": "Assessment 3", "type": "Assessment", "due": "2026-07-20", "note": "Written — Chapter 5 (Functions)" },
+    { "title": "Assessment 4", "type": "Assessment", "due": "2026-08-17", "note": "Written — Chapter 6 (Order Relations and Structures)" },
+    { "title": "Final Exam", "type": "Exam", "due": null, "note": "October/November 2026 — 2-hour written exam, covers all chapters" }
+  ],
+  "learningUnits": [
+    { "title": "Unit 1: Fundamentals", "description": "Sets, operations on sets, sequences, properties of integers and matrices. (Prescribed book Chapter 1)" },
+    { "title": "Unit 2: Logic", "description": "Propositional logic, conditionals, logical equivalence, direct proof, proof by contradiction, and mathematical induction. (Prescribed book Chapter 2)" },
+    { "title": "Unit 3: Counting", "description": "Multiplication principle, sum rule, permutations, combinations, repetition cases, and the pigeonhole principle. (Prescribed book Chapter 3)" },
+    { "title": "Unit 4: Relations and Digraphs", "description": "Properties of relations (reflexivity, symmetry, transitivity), matrix and digraph representations, Warshall's algorithm, equivalence relations. (Prescribed book Chapter 4)" },
+    { "title": "Unit 5: Functions", "description": "Injective, surjective and bijective functions; invertibility; Big-O notation; permutations and cycle notation; even and odd permutations. (Prescribed book Chapter 5)" },
+    { "title": "Unit 6: Order Relations and Structures", "description": "Partial orders, Hasse diagrams, lattices, Boolean algebras, truth tables and Karnaugh maps. (Prescribed book Chapter 6)" }
+  ],
+  "tasks": [
+    { "title": "Unit 1: Fundamentals", "description": "Sets, operations on sets, sequences, properties of integers and matrices. (Prescribed book Chapter 1)" },
+    { "title": "Unit 2: Logic", "description": "Propositional logic, conditionals, logical equivalence, direct proof, proof by contradiction, and mathematical induction. (Prescribed book Chapter 2)" },
+    { "title": "Unit 3: Counting", "description": "Multiplication principle, sum rule, permutations, combinations, repetition cases, and the pigeonhole principle. (Prescribed book Chapter 3)" },
+    { "title": "Unit 4: Relations and Digraphs", "description": "Properties of relations (reflexivity, symmetry, transitivity), matrix and digraph representations, Warshall's algorithm, equivalence relations. (Prescribed book Chapter 4)" },
+    { "title": "Unit 5: Functions", "description": "Injective, surjective and bijective functions; invertibility; Big-O notation; permutations and cycle notation; even and odd permutations. (Prescribed book Chapter 5)" },
+    { "title": "Unit 6: Order Relations and Structures", "description": "Partial orders, Hasse diagrams, lattices, Boolean algebras, truth tables and Karnaugh maps. (Prescribed book Chapter 6)" }
+  ],
+  "color": 1
+},
+
+{
+  "code": "COS2614",
+  "title": "Programming: Contemporary Concepts",
+  "period": "Year — 2026",
+  "lecturer": "Mr L Aron",
+  "email": "aronl@unisa.ac.za",
+  "tel": null,
+  "description": "After completing this module successfully, you will be able to apply object-oriented programming techniques and strategies in solving real-world problems according to industry-approved processes within South African and global contexts.\n\nOutcomes:\n1. Demonstrate an understanding of inheritance in an object-oriented programming (OOP) language.\n2. Demonstrate an understanding of polymorphism in an object-oriented programming (OOP) language.\n3. Analyse problem situations to plan an object-oriented implementation.\n4. Write programs with graphical user interfaces using an object-oriented GUI framework.\n5. Optimise re-usability through the use of basic software design patterns.",
+  "assessments": [
+    { "title": "Assessment 1", "type": "Assignment", "due": "2026-05-25", "note": "Written assignment — OOP revision, Qt Creator, UML" },
+    { "title": "Assessment 2", "type": "Quiz", "due": "2026-06-30", "note": "Online quiz — Design Patterns, Lists, Libraries" },
+    { "title": "Assessment 3", "type": "Assignment", "due": "2026-08-11", "note": "Written assignment — QObject, Generics, Containers, Qt GUI Widgets" },
+    { "title": "Assessment 4", "type": "Quiz", "due": "2026-09-07", "note": "Revision quiz — covers all units" },
+    { "title": "Final Exam", "type": "Exam", "due": null, "note": "October/November 2026 — covers all units" }
+  ],
+  "learningUnits": [
+    { "title": "Pre-requisite Information", "description": "Review of foundational knowledge required before starting the module." },
+    { "title": "Qt Creator", "description": "Introduction to the Qt Creator IDE and development environment setup." },
+    { "title": "Object-Oriented Programming", "description": "Revision of OOP concepts — classes, objects, inheritance, and polymorphism in C++." },
+    { "title": "UML Diagrams", "description": "Modelling object-oriented systems using UML — classes, features, and interrelationships." },
+    { "title": "Design Patterns", "description": "Introduction to basic software design patterns for improving code re-usability." },
+    { "title": "Lists", "description": "Working with list data structures in C++ and Qt." },
+    { "title": "Libraries", "description": "Using and integrating libraries in Qt-based programs." },
+    { "title": "QObject", "description": "Understanding QObject, Qt's base class — signals, slots, and the Qt object model." },
+    { "title": "Generics and Containers", "description": "Using generic programming and Qt container classes." },
+    { "title": "Qt GUI Widgets", "description": "Building graphical user interfaces using Qt's widget framework." }
+  ],
+  "tasks": [
+    { "title": "Pre-requisite Information", "description": "Review of foundational knowledge required before starting the module." },
+    { "title": "Qt Creator", "description": "Introduction to the Qt Creator IDE and development environment setup." },
+    { "title": "Object-Oriented Programming", "description": "Revision of OOP concepts — classes, objects, inheritance, and polymorphism in C++." },
+    { "title": "UML Diagrams", "description": "Modelling object-oriented systems using UML — classes, features, and interrelationships." },
+    { "title": "Design Patterns", "description": "Introduction to basic software design patterns for improving code re-usability." },
+    { "title": "Lists", "description": "Working with list data structures in C++ and Qt." },
+    { "title": "Libraries", "description": "Using and integrating libraries in Qt-based programs." },
+    { "title": "QObject", "description": "Understanding QObject, Qt's base class — signals, slots, and the Qt object model." },
+    { "title": "Generics and Containers", "description": "Using generic programming and Qt container classes." },
+    { "title": "Qt GUI Widgets", "description": "Building graphical user interfaces using Qt's widget framework." }
+  ],
+  "color": 2
+},
+
+{
+  "code": "APM2616",
+  "title": "Computer Algebra",
+  "period": "Year — 2026",
+  "lecturer": "Mr M Kgarose",
+  "email": "kgarom@unisa.ac.za",
+  "tel": "+27 11 670 9169",
+  "description": "Computer algebra is a form of computer programming that enables the analytical solution of mathematical problems. The module covers symbolic computation using MuPAD and scientific document preparation using LaTeX.\n\nPurpose:\n(a) To solve analytically a variety of mathematical problems including algebraic equations (linear and nonlinear), differentiation, integration, differential equations, matrix manipulation, series expansions and limits.\n(b) To represent mathematical functions graphically in 2D and 3D.\n(c) Scientific document preparation and producing mathematical reports using LaTeX.\n\nPrerequisites: COS1511 and APM1513. Co-requisites: MAT1512 and MAT1503.",
+  "assessments": [
+    { "title": "Assessment 1", "type": "Assessment", "due": "2026-05-25", "note": "Compulsory — Study Units 1–4 (MuPAD basics, simplification, functions, differentiation & integration)" },
+    { "title": "Assessment 2", "type": "Assessment", "due": "2026-06-22", "note": "Written — Study Units 5–8 (Data types, linear algebra, procedures, equations, series)" },
+    { "title": "Assessment 3", "type": "Assessment", "due": "2026-07-20", "note": "Written — Study Units 9–12 (Advanced commands, linear algebra, ODEs, 2D & 3D plots)" },
+    { "title": "Assessment 4", "type": "Assessment", "due": "2026-08-17", "note": "Written — Study Units 13–16 (LaTeX basics, mathematical expressions, tables, project)" },
+    { "title": "Final Exam", "type": "Exam", "due": null, "note": "October/November 2026 — 2-hour written exam, covers all study units" }
+  ],
+  "learningUnits": [
+    { "title": "Study Unit 1: Software setup", "description": "Practicalities of gaining access and running MuPAD and LaTeX software needed for the module." },
+    { "title": "Study Unit 2: MuPAD help, identifiers and assignments", "description": "Use of the MuPAD online help facility to solve problems; identifiers and assignments." },
+    { "title": "Study Unit 3: Simplification and substitution", "description": "Simplifying and substituting expressions using MuPAD." },
+    { "title": "Study Unit 4: Functions, differentiation and integration", "description": "Defining and working with functions; symbolic differentiation and integration in MuPAD." },
+    { "title": "Study Unit 5: Data types, packages and linear algebra", "description": "Data types, packages, the linear algebra package (linalg), and matrices over specified structures." },
+    { "title": "Study Unit 6: Procedures", "description": "Basic syntax, local and global variables, output and input variables, evaluation within a procedure." },
+    { "title": "Study Unit 7: Equations and ODEs", "description": "Solving algebraic equations, ordinary differential equations, and recurrence relations." },
+    { "title": "Study Unit 8: Series", "description": "Taylor series, general series, extracting coefficients, and applications of series." },
+    { "title": "Study Unit 9: Advanced simplification commands", "description": "Commands: collect, combine, rewrite, partfrac, rectform, radsimp, assume, and limit." },
+    { "title": "Study Unit 10: Linear algebra, integrals and ODEs (applied)", "description": "Applied linear algebra, definite integrals, and ordinary differential equations using MuPAD." },
+    { "title": "Study Unit 11: 2D plotting", "description": "Output, creating plots of functions, parametric and other 2D plots." },
+    { "title": "Study Unit 12: 3D plotting", "description": "Plots of functions in 3 dimensions, plotting options in 3D, and customised graphics." },
+    { "title": "Study Unit 13: Getting started with LaTeX", "description": "Introduction to LaTeX, getting help, and understanding the structure of a LaTeX document." },
+    { "title": "Study Unit 14: Mathematical expressions in LaTeX", "description": "Typesetting mathematical expressions, integrating MuPAD output with LaTeX, and LaTeX packages." },
+    { "title": "Study Unit 15: Tables and miscellaneous LaTeX", "description": "Creating tables in LaTeX and miscellaneous LaTeX features." },
+    { "title": "Study Unit 16: Project", "description": "A comprehensive project integrating MuPAD computation and LaTeX report writing." }
+  ],
+  "tasks": [
+    { "title": "Study Unit 1: Software setup", "description": "Practicalities of gaining access and running MuPAD and LaTeX software needed for the module." },
+    { "title": "Study Unit 2: MuPAD help, identifiers and assignments", "description": "Use of the MuPAD online help facility to solve problems; identifiers and assignments." },
+    { "title": "Study Unit 3: Simplification and substitution", "description": "Simplifying and substituting expressions using MuPAD." },
+    { "title": "Study Unit 4: Functions, differentiation and integration", "description": "Defining and working with functions; symbolic differentiation and integration in MuPAD." },
+    { "title": "Study Unit 5: Data types, packages and linear algebra", "description": "Data types, packages, the linear algebra package (linalg), and matrices over specified structures." },
+    { "title": "Study Unit 6: Procedures", "description": "Basic syntax, local and global variables, output and input variables, evaluation within a procedure." },
+    { "title": "Study Unit 7: Equations and ODEs", "description": "Solving algebraic equations, ordinary differential equations, and recurrence relations." },
+    { "title": "Study Unit 8: Series", "description": "Taylor series, general series, extracting coefficients, and applications of series." },
+    { "title": "Study Unit 9: Advanced simplification commands", "description": "Commands: collect, combine, rewrite, partfrac, rectform, radsimp, assume, and limit." },
+    { "title": "Study Unit 10: Linear algebra, integrals and ODEs (applied)", "description": "Applied linear algebra, definite integrals, and ordinary differential equations using MuPAD." },
+    { "title": "Study Unit 11: 2D plotting", "description": "Output, creating plots of functions, parametric and other 2D plots." },
+    { "title": "Study Unit 12: 3D plotting", "description": "Plots of functions in 3 dimensions, plotting options in 3D, and customised graphics." },
+    { "title": "Study Unit 13: Getting started with LaTeX", "description": "Introduction to LaTeX, getting help, and understanding the structure of a LaTeX document." },
+    { "title": "Study Unit 14: Mathematical expressions in LaTeX", "description": "Typesetting mathematical expressions, integrating MuPAD output with LaTeX, and LaTeX packages." },
+    { "title": "Study Unit 15: Tables and miscellaneous LaTeX", "description": "Creating tables in LaTeX and miscellaneous LaTeX features." },
+    { "title": "Study Unit 16: Project", "description": "A comprehensive project integrating MuPAD computation and LaTeX report writing." }
+  ],
+  "color": 3
+},
+
+{
+  "code": "COS1521",
+  "title": "Computer Systems: Fundamental Concepts",
+  "period": "Year — 2026",
+  "lecturer": "Mr LS Nxumalo",
+  "email": "nxumals@unisa.ac.za",
+  "tel": "011 670 9126",
+  "description": "The purpose of this module is to introduce you to the computer as a system. It covers hardware concepts such as internal representation of numbers and characters and basic computer architecture, as well as software concepts such as systems software and applications software. It also includes a brief introduction to databases and to systems analysis and design.\n\nOutcomes:\n1. Demonstrate how data is represented, manipulated and stored in a computer using number systems, Boolean algebra, Karnaugh maps, truth tables and basic logic circuit drawings.\n2. Demonstrate an understanding of the basic functions of computers, the software development process, and hardware and software components.\n3. Demonstrate an understanding of the basics of data communications and networks.\n4. Describe data structures and how different databases function.",
+  "assessments": [
+    { "title": "Assessment 1", "type": "Forum", "due": "2026-05-27", "note": "Forum activity — introductory participation (no chapter content)" },
+    { "title": "Assessment 2", "type": "Quiz", "due": "2026-06-18", "note": "Quiz — Chapters 1–5 (Introduction, Number Systems, Data Storage, Operations on Data, Computer Organisation)" },
+    { "title": "Assessment 3", "type": "Quiz", "due": "2026-07-22", "note": "Quiz — Chapters 6, 7, 8 & 10 (Networks, Operating Systems, Algorithms, Programming Languages)" },
+    { "title": "Assessment 4", "type": "Quiz", "due": "2026-08-13", "note": "Quiz — Chapters 11, 12, 14 & 15 (Software Engineering, Data Structure, File Structure, Databases)" },
+    { "title": "Assessment 5", "type": "Forum", "due": "2026-09-02", "note": "Forum activity — covers all chapters" },
+    { "title": "Final Exam", "type": "Exam", "due": null, "note": "October/November 2026 — covers all chapters" }
+  ],
+  "learningUnits": [
+    { "title": "Start Here", "description": "Orientation lesson — how to navigate and use the module site effectively." },
+    { "title": "Chapter 1: Introduction", "description": "Overview of computers, historical developments, and computer ethics." },
+    { "title": "Chapter 2: Number Systems", "description": "Binary, octal, decimal and hexadecimal number systems; conversions and arithmetic." },
+    { "title": "Chapter 3: Data Storage", "description": "Internal representation of numbers, characters, images, audio and video in a computer." },
+    { "title": "Chapter 4: Operations on Data", "description": "Boolean algebra, logic gates, Karnaugh maps, truth tables and combinational circuits." },
+    { "title": "Chapter 5: Computer Organisation", "description": "Basic computer architecture — CPU, memory, input/output; hardware subsystems and their interconnections." },
+    { "title": "Chapter 6: Computer Networks", "description": "Network types, physical structures, the Internet, TCP/IP protocol suite and Internet applications." },
+    { "title": "Chapter 7: Operating Systems", "description": "Functions and components of an operating system; popular operating platforms." },
+    { "title": "Chapter 8: Algorithms", "description": "Definition of algorithms, the three algorithm constructs, sorting and searching, sub-algorithms." },
+    { "title": "Chapter 10: Programming Languages", "description": "History and generations of programming languages; translation methods (compilers, interpreters)." },
+    { "title": "Chapter 11: Software Engineering", "description": "Software development process models, software life-cycle phases and documentation." },
+    { "title": "Chapter 12: Data Structure", "description": "Arrays, linked lists, stacks, queues, trees and graphs." },
+    { "title": "Chapter 13: File Structure", "description": "File organisation, access methods, updating methods and directory categories." },
+    { "title": "Chapter 15: Databases", "description": "Database models, relational databases, database management systems (DBMS) and database design." }
+  ],
+  "tasks": [
+    { "title": "Start Here", "description": "Orientation lesson — how to navigate and use the module site effectively." },
+    { "title": "Chapter 1: Introduction", "description": "Overview of computers, historical developments, and computer ethics." },
+    { "title": "Chapter 2: Number Systems", "description": "Binary, octal, decimal and hexadecimal number systems; conversions and arithmetic." },
+    { "title": "Chapter 3: Data Storage", "description": "Internal representation of numbers, characters, images, audio and video in a computer." },
+    { "title": "Chapter 4: Operations on Data", "description": "Boolean algebra, logic gates, Karnaugh maps, truth tables and combinational circuits." },
+    { "title": "Chapter 5: Computer Organisation", "description": "Basic computer architecture — CPU, memory, input/output; hardware subsystems and their interconnections." },
+    { "title": "Chapter 6: Computer Networks", "description": "Network types, physical structures, the Internet, TCP/IP protocol suite and Internet applications." },
+    { "title": "Chapter 7: Operating Systems", "description": "Functions and components of an operating system; popular operating platforms." },
+    { "title": "Chapter 8: Algorithms", "description": "Definition of algorithms, the three algorithm constructs, sorting and searching, sub-algorithms." },
+    { "title": "Chapter 10: Programming Languages", "description": "History and generations of programming languages; translation methods (compilers, interpreters)." },
+    { "title": "Chapter 11: Software Engineering", "description": "Software development process models, software life-cycle phases and documentation." },
+    { "title": "Chapter 12: Data Structure", "description": "Arrays, linked lists, stacks, queues, trees and graphs." },
+    { "title": "Chapter 13: File Structure", "description": "File organisation, access methods, updating methods and directory categories." },
+    { "title": "Chapter 15: Databases", "description": "Database models, relational databases, database management systems (DBMS) and database design." }
+  ],
+  "color": 4
+},
+
+{
+  "code": "COS2611",
+  "title": "Programming: Data Structures",
+  "period": "Year — 2026",
+  "lecturer": "Dr R van der Merwe",
+  "email": "vdmerwer@unisa.ac.za",
+  "tel": "+27 11 471 2929",
+  "description": "Students who successfully complete this module will have the knowledge, skills and competencies to apply Data Structures and Algorithm Analysis knowledge and strategies in solving real-world programming problems, according to industry-approved processes within African, South African and global contexts.\n\nOutcomes:\n1. Demonstrate an understanding of algorithm analysis and the Big-O notation used in algorithm analysis.\n2. Demonstrate an understanding of the basic properties of pointers and linked lists.\n3. Demonstrate an understanding of how to use recursion to solve problems and how to think in terms of recursion.\n4. Demonstrate an understanding of Abstract Data Types (ADTs) and how they are stored on computers (including Queues, Stacks, Graphs and Trees).\n5. Demonstrate an understanding of search techniques used to retrieve data held in data structures (including Sequential Search and Binary Search).\n6. Demonstrate an understanding of sort techniques used to sort data held in data structures.",
+  "assessments": [
+    { "title": "Assessment 1", "type": "Assessment", "due": "2026-05-01", "note": "Practical Project — Outcome 1: Algorithm analysis & Big-O notation" },
+    { "title": "Assessment 2", "type": "Assessment", "due": "2026-06-01", "note": "Practical Project (peer-reviewed) — Outcome 2: Pointers and linked lists" },
+    { "title": "Assessment 3", "type": "Assessment", "due": "2026-07-01", "note": "Practical Project — Outcome 3: Recursion" },
+    { "title": "Assessment 4", "type": "Assessment", "due": "2026-08-01", "note": "Quiz — Outcomes 4 & 5: ADTs, searching and sorting" },
+    { "title": "Final Exam", "type": "Exam", "due": null, "note": "October/November 2026 — Section A: Practical Project (40%), Section B: Quiz (60%) — covers all outcomes" }
+  ],
+  "learningUnits": [
+    { "title": "Study Unit 1: Algorithm Analysis", "link": "https://mymodules.dtls.unisa.ac.za/course/view.php?id=86831#section-0", "description": "Algorithm analysis and Big-O notation; best-case, average-case, and worst-case complexity; comparing algorithm efficiencies. (Textbook chapters covered in class)" },
+    { "title": "Study Unit 2: Pointers and Linked Lists", "link": "https://mymodules.dtls.unisa.ac.za/mod/book/view.php?id=1273920", "description": "Basic properties of pointers; referencing and dereferencing; pointer arithmetic; constructing and manipulating singly and doubly linked lists. (Ch. 17)" },
+    { "title": "Study Unit 3: Recursion", "link": "https://mymodules.dtls.unisa.ac.za/mod/book/view.php?id=1273922", "description": "Using recursion to solve problems; identifying base and recursive cases; converting between recursive and iterative solutions; evaluating recursion efficiency. (Ch. 18)" },
+    { "title": "Study Unit 4: Abstract Data Types (ADTs)", "link": "https://mymodules.dtls.unisa.ac.za/mod/book/view.php?id=1273927", "description": "Abstract Data Types including Queues, Stacks, Graphs and Trees; implementing ADTs using arrays and linked lists; memory usage and management. (Ch. 17–21)" },
+    { "title": "Study Unit 5: Searching and Sorting", "link": "https://mymodules.dtls.unisa.ac.za/mod/book/view.php?id=1273927", "description": "Search techniques including Sequential Search and Binary Search; sort techniques used on data structures; comparing time complexities. (Ch. 18, 19, 20)" }
+  ],
+  "tasks": [
+    { "title": "Study Unit 1: Algorithm Analysis", "link": "https://mymodules.dtls.unisa.ac.za/course/view.php?id=86831#section-0", "description": "Algorithm analysis and Big-O notation; best-case, average-case, and worst-case complexity; comparing algorithm efficiencies. (Textbook chapters covered in class)" },
+    { "title": "Study Unit 2: Pointers and Linked Lists", "link": "https://mymodules.dtls.unisa.ac.za/mod/book/view.php?id=1273920", "description": "Basic properties of pointers; referencing and dereferencing; pointer arithmetic; constructing and manipulating singly and doubly linked lists. (Ch. 17)" },
+    { "title": "Study Unit 3: Recursion", "link": "https://mymodules.dtls.unisa.ac.za/mod/book/view.php?id=1273922", "description": "Using recursion to solve problems; identifying base and recursive cases; converting between recursive and iterative solutions; evaluating recursion efficiency. (Ch. 18)" },
+    { "title": "Study Unit 4: Abstract Data Types (ADTs)", "link": "https://mymodules.dtls.unisa.ac.za/mod/book/view.php?id=1273927", "description": "Abstract Data Types including Queues, Stacks, Graphs and Trees; implementing ADTs using arrays and linked lists; memory usage and management. (Ch. 17–21)" },
+    { "title": "Study Unit 5: Searching and Sorting", "link": "https://mymodules.dtls.unisa.ac.za/mod/book/view.php?id=1273927", "description": "Search techniques including Sequential Search and Binary Search; sort techniques used on data structures; comparing time complexities. (Ch. 18, 19, 20)" }
+  ],
+  "color": 5
+},
+
+{
+  "code": "COS3751",
+  "title": "Techniques of Artificial Intelligence",
+  "period": "Year — 2026",
+  "lecturer": "School of Computing",
+  "email": "computing@unisa.ac.za",
+  "tel": "+27 11 670 9200",
+  "description": "Students are introduced to the principles and techniques of Artificial Intelligence from a foundational level. This includes Agents and State Spaces, Searching (informed as well as uninformed), evaluation of search efficiency and performance measures, Coding of problems, Logic and knowledge representation, dealing with uncertainty, and automated reasoning.\n\nOutcomes:\n1. Represent search problems as formal mathematical presentations and apply defined mathematical tools to solve them.\n2. Perform informed searches and exploration using mathematical reasoning techniques including heuristic functions.\n3. Perform adversarial searches on game trees in deterministic, turn-taking, two-player games of perfect information.\n4. Analyse and synthesise different forms of learning theory.\n5. Analyse and express conditions-action rules of logical agents in propositional logic.\n6. Analyse and express sentences in predicate (first-order) logic.\n7. Analyse and express Constraint Satisfaction Problems (CSPs) as mathematical expressions.",
+  "assessments": [
+    { "title": "Assessment 1", "type": "Assessment", "due": "2026-05-08", "note": "Written assignment — Chapters 1–5 (Introduction, Intelligent Agents, Searching, Complex Environments, Adversarial Search). Weight: 30% of year mark." },
+    { "title": "Assessment 2", "type": "Assessment", "due": "2026-06-01", "note": "Written assignment — Chapters 6–9 (CSPs, Logical Agents, First-Order Logic, Inference in FOL). Weight: 30% of year mark." },
+    { "title": "Assessment 3", "type": "Assessment", "due": "2026-07-01", "note": "Written assignment — Chapters 18, 19, 23, 24, 27 & 28 (Learning, Philosophy, Ethics, Future of AI). Weight: 40% of year mark." },
+    { "title": "Final Exam", "type": "Exam", "due": null, "note": "October/November 2026 — closed-book online exam with IRIS invigilation. Covers all study units." }
+  ],
+  "learningUnits": [
+    { "title": "Chapter 1: Introduction to AI", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Concepts of AI and the fundamental issues it grapples with; a short overview of the origins of the field." },
+    { "title": "Chapter 2: Intelligent Agents", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Concepts and terminology of intelligent agents; applying definitions in different scenarios." },
+    { "title": "Chapter 3: Solving Problems by Searching", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Formally defining problems; applying uninformed search strategies. Omit Section 3.5.5 (Memory-bounded search)." },
+    { "title": "Chapter 4: Search in Complex Environments", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Search algorithms for complex environments. Omit Sections 4.2 (Local Search in Continuous Spaces) and 4.5 (Online Search Agents)." },
+    { "title": "Chapter 5: Adversarial Search and Games", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Game trees and adversarial search algorithms. Omit Sections 5.5 (Stochastic Games), 5.6 (Partially Observable Games), 5.7 (Limitations)." },
+    { "title": "Chapter 6: Constraint Satisfaction Problems", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "CSP algorithms; expressing constrained problems as mathematical expressions. Study everything." },
+    { "title": "Chapter 7: Logical Agents", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Propositional logic; forward and backward chaining; resolution and resolution refutation. Omit DPLL, WALKSAT, and Section 7.6." },
+    { "title": "Chapter 8: First-Order Logic", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "First-order logic syntax and semantics. Omit Section 8.4 (Knowledge Engineering in FOL)." },
+    { "title": "Chapter 9: Inference in First-Order Logic", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Inference techniques in FOL. Omit Sections 9.3 (Forward Chaining), 9.4 (Backward Chaining), and Prolog." },
+    { "title": "Chapter 19: Learning from Examples", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Forms of learning; supervised learning; constructing and reasoning with decision trees. Omit Sections 19.4–19.9." },
+    { "title": "Chapters 23 & 24: Additional Learning Topics", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Additional learning theory topics as per study plan." },
+    { "title": "Chapter 27: Philosophy, Ethics, and Safety of AI", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Philosophical foundations of AI; ethical considerations; safety and alignment issues." },
+    { "title": "Chapter 28: The Future of AI", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Emerging directions, risks, and the future trajectory of artificial intelligence." }
+  ],
+  "tasks": [
+    { "title": "Chapter 1: Introduction to AI", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Concepts of AI and the fundamental issues it grapples with; a short overview of the origins of the field." },
+    { "title": "Chapter 2: Intelligent Agents", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Concepts and terminology of intelligent agents; applying definitions in different scenarios." },
+    { "title": "Chapter 3: Solving Problems by Searching", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Formally defining problems; applying uninformed search strategies. Omit Section 3.5.5 (Memory-bounded search)." },
+    { "title": "Chapter 4: Search in Complex Environments", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Search algorithms for complex environments. Omit Sections 4.2 (Local Search in Continuous Spaces) and 4.5 (Online Search Agents)." },
+    { "title": "Chapter 5: Adversarial Search and Games", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Game trees and adversarial search algorithms. Omit Sections 5.5 (Stochastic Games), 5.6 (Partially Observable Games), 5.7 (Limitations)." },
+    { "title": "Chapter 6: Constraint Satisfaction Problems", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "CSP algorithms; expressing constrained problems as mathematical expressions. Study everything." },
+    { "title": "Chapter 7: Logical Agents", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Propositional logic; forward and backward chaining; resolution and resolution refutation. Omit DPLL, WALKSAT, and Section 7.6." },
+    { "title": "Chapter 8: First-Order Logic", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "First-order logic syntax and semantics. Omit Section 8.4 (Knowledge Engineering in FOL)." },
+    { "title": "Chapter 9: Inference in First-Order Logic", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Inference techniques in FOL. Omit Sections 9.3 (Forward Chaining), 9.4 (Backward Chaining), and Prolog." },
+    { "title": "Chapter 19: Learning from Examples", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Forms of learning; supervised learning; constructing and reasoning with decision trees. Omit Sections 19.4–19.9." },
+    { "title": "Chapters 23 & 24: Additional Learning Topics", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Additional learning theory topics as per study plan." },
+    { "title": "Chapter 27: Philosophy, Ethics, and Safety of AI", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Philosophical foundations of AI; ethical considerations; safety and alignment issues." },
+    { "title": "Chapter 28: The Future of AI", "link": "https://mymodules.dtls.unisa.ac.za/mod/folder/view.php?id=1315314", "description": "Emerging directions, risks, and the future trajectory of artificial intelligence." }
+  ],
+  "color": 6
+},
+
+{
+  "code": "COS3761",
+  "title": "Formal Logic III",
+  "period": "Year — 2026",
+  "lecturer": "Prof S Vallabhapurapu",
+  "email": "vallas@unisa.ac.za",
+  "tel": "011 471 2381",
+  "description": "The purpose of studying logic is to refine one's natural ability to reason and argue. Logic is concerned with training the mind to think clearly. The aim of logic is to obtain clarity in the definition and arrangement of our ideas, consistency in our judgements, and validity in our processes of inference. Logic is about representing knowledge in a precise language so that a computer can reason about it. Logic is applied extensively in the fields of Artificial Intelligence, Computer Science and Philosophy, and this module aims to provide a solid foundation for these studies.",
+  "assessments": [
+    { "title": "Assessment 1", "type": "Assessment", "due": "2026-04-30", "note": "MCQs — Learning Unit 1: Propositional Logic" },
+    { "title": "Assessment 2", "type": "Assessment", "due": "2026-06-26", "note": "Written assignment — Learning Unit 2: Predicate Logic" },
+    { "title": "Assessment 3", "type": "Assessment", "due": "2026-09-08", "note": "MCQs — Learning Unit 3: Modal Logic" },
+    { "title": "Final Exam", "type": "Exam", "due": null, "note": "November/December 2026 — take-home online exam, covers all learning units" }
+  ],
+  "learningUnits": [
+    { "title": "Learning Unit 1: Propositional Logic", "description": "Declarative sentences, natural deduction, semantics, normal forms. Prescribed book sections 1.1–1.5.1 and 1.5.3." },
+    { "title": "Learning Unit 2: Predicate Logic", "description": "Syntax, natural deduction, semantics, undecidability. Prescribed book sections 2.1–2.5." },
+    { "title": "Learning Unit 3: Modal Logic", "description": "Syntax, semantics, logic engineering, natural deduction, multi-agent systems. Prescribed book sections 5.1–5.5.2." }
+  ],
+  "tasks": [
+    { "title": "Learning Unit 1: Propositional Logic", "description": "Declarative sentences, natural deduction, semantics, normal forms. Prescribed book sections 1.1–1.5.1 and 1.5.3." },
+    { "title": "Learning Unit 2: Predicate Logic", "description": "Syntax, natural deduction, semantics, undecidability. Prescribed book sections 2.1–2.5." },
+    { "title": "Learning Unit 3: Modal Logic", "description": "Syntax, semantics, logic engineering, natural deduction, multi-agent systems. Prescribed book sections 5.1–5.5.2." }
+  ],
+  "color": 7
+},
+
+{
+  "code": "FYE1500",
+  "title": "Fundamental Skills for Student Success",
+  "period": "Semester 1 — 2026",
+  "lecturer": null,
+  "email": "fye@unisa.ac.za",
+  "tel": "0800 00 1870",
+  "description": "FYE1500 is a self-development course designed to orientate new students to Unisa and provide a core set of skills for academic success. It covers cybersecurity, the learning management system, student support services, academic literacy, numeracy, digital literacy, study skills, and navigating assignments. There are no credits for this course.",
+  "assessments": [
+    { "title": "Assessment 1", "type": "Assessment", "due": "2026-04-30", "note": "Covers Units 1 & 2: Orientation and Cybersecurity 101" },
+    { "title": "Assessment 2", "type": "Assessment", "due": "2026-06-30", "note": "Covers Units 3 & 4: LMS and Student Affairs Services" },
+    { "title": "Assessment 3", "type": "Assessment", "due": "2026-09-30", "note": "Covers Units 5 & 6: Academic Literacy and Numeracy" },
+    { "title": "Assessment 4", "type": "Assessment", "due": "2026-10-31", "note": "Covers Units 7 & 8: Digital Literacy and Study Skills" },
+    { "title": "Assessment 5", "type": "Assessment", "due": "2026-11-30", "note": "Covers Units 9 & 10: mySupport Hub and Assignment Navigator" }
+  ],
+  "learningUnits": [
+    { "title": "Unit 1: Orientation", "description": "Introduction to the FYE1500 course and orientation to studying at Unisa as an open distance e-learning institution." },
+    { "title": "Unit 2: Cybersecurity 101", "description": "Introduction to cybersecurity principles and staying safe online as a Unisa student." },
+    { "title": "Unit 3: Getting to know your Learning Management System (LMS)", "description": "Navigating myUnisa, the academic student portal used for accessing module content, submitting assessments, and engaging with lecturers." },
+    { "title": "Unit 4: Understanding the Student Affairs Services", "description": "Overview of the student support and affairs services available to Unisa students." },
+    { "title": "Unit 5: Basic Academic Literacy", "description": "Foundational academic reading, writing, and communication skills required for success in higher education." },
+    { "title": "Unit 6: Basic Numeracy", "description": "Essential numeracy skills to support academic work across modules." },
+    { "title": "Unit 7: Basic Digital Literacy", "description": "Core digital skills needed to study effectively in an online distance learning environment." },
+    { "title": "Unit 8: Basic Study Skills", "description": "Effective study techniques, time management, and strategies for academic success at Unisa." },
+    { "title": "Unit 9: mySupport Hub", "description": "Using Unisa's extended student support resources and the mySupport Hub platform." },
+    { "title": "Unit 10: The Assignment Navigator", "description": "Guidance on understanding, planning, and submitting assignments at Unisa." }
+  ],
+  "tasks": [
+    { "title": "Unit 1: Orientation", "description": "Introduction to the FYE1500 course and orientation to studying at Unisa as an open distance e-learning institution." },
+    { "title": "Unit 2: Cybersecurity 101", "description": "Introduction to cybersecurity principles and staying safe online as a Unisa student." },
+    { "title": "Unit 3: Getting to know your Learning Management System (LMS)", "description": "Navigating myUnisa, the academic student portal used for accessing module content, submitting assessments, and engaging with lecturers." },
+    { "title": "Unit 4: Understanding the Student Affairs Services", "description": "Overview of the student support and affairs services available to Unisa students." },
+    { "title": "Unit 5: Basic Academic Literacy", "description": "Foundational academic reading, writing, and communication skills required for success in higher education." },
+    { "title": "Unit 6: Basic Numeracy", "description": "Essential numeracy skills to support academic work across modules." },
+    { "title": "Unit 7: Basic Digital Literacy", "description": "Core digital skills needed to study effectively in an online distance learning environment." },
+    { "title": "Unit 8: Basic Study Skills", "description": "Effective study techniques, time management, and strategies for academic success at Unisa." },
+    { "title": "Unit 9: mySupport Hub", "description": "Using Unisa's extended student support resources and the mySupport Hub platform." },
+    { "title": "Unit 10: The Assignment Navigator", "description": "Guidance on understanding, planning, and submitting assignments at Unisa." }
+  ],
+  "color": 8
+}
+
 ];
 
+
+
 const UNIT_LINKS = {
-  "APM1513": {
-    "Assessment 1": [
-      0,
-      1
-    ],
-    "Assessment 2": [
-      0,
-      1,
-      2
-    ],
-    "Assessment 3": [
-      2,
-      3,
-      4
-    ],
-    "Assessment 4": [
-      4,
-      5
-    ],
-    "Final Exam": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5
-    ]
-  },
-  "APM2616": {
-    "Assessment 1": [
-      0,
-      1,
-      2,
-      3
-    ],
-    "Assessment 2": [
-      4,
-      5,
-      6
-    ],
-    "Assessment 3": [
-      7
-    ],
-    "Assessment 4": [
-      8
-    ],
-    "Final Exam": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8
-    ]
-  },
-  "COS1521": {
-    "Assessment 1": [
-      1,
-      2,
-      3,
-      4,
-      5
-    ],
-    "Assessment 2": [
-      5,
-      6,
-      7
-    ],
-    "Assessment 3": [
-      7,
-      8,
-      9
-    ],
-    "Assessment 4": [
-      9,
-      10,
-      11
-    ],
-    "Assessment 5": [
-      11,
-      12,
-      13
-    ],
-    "Final Exam": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11,
-      12,
-      13
-    ]
-  },
-  "COS2611": {
-    "Assessment 1": [
-      0
-    ],
-    "Assessment 2": [
-      0,
-      1
-    ],
-    "Assessment 3": [
-      1,
-      2
-    ],
-    "Assessment 4": [
-      3
-    ],
-    "Final Exam": [
-      0,
-      1,
-      2,
-      3
-    ]
-  },
-  "COS2614": {
-    "Assessment 1": [
-      0,
-      1,
-      2,
-      3
-    ],
-    "Assessment 2": [
-      3,
-      4,
-      5
-    ],
-    "Assessment 3": [
-      6,
-      7,
-      8,
-      9
-    ],
-    "Assessment 4": [
-      7,
-      8,
-      9
-    ],
-    "Final Exam": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9
-    ]
-  },
-  "COS3751": {
-    "Assessment 1": [
-      0,
-      1,
-      2,
-      3,
-      4
-    ],
-    "Assessment 2": [
-      5,
-      6
-    ],
-    "Assessment 3": [
-      7,
-      8
-    ],
-    "Final Exam": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8
-    ]
-  },
-  "COS3761": {
-    "Assessment 1": [
-      0
-    ],
-    "Assessment 2": [
-      1
-    ],
-    "Assessment 3": [
-      2
-    ],
-    "Final Exam": [
-      0,
-      1,
-      2
-    ]
-  },
-  "MAT2612": {
-    "Assessment 1": [
-      0,
-      1
-    ],
-    "Assessment 2": [
-      2
-    ],
-    "Assessment 3": [
-      3
-    ],
-    "Assessment 4": [
-      4
-    ],
-    "Final Exam": [
-      0,
-      1,
-      2,
-      3,
-      4
-    ]
-  },
-  "FYE1500": {
-    "Assessment 1": [
-      0,
-      1,
-      2
-    ],
-    "Assessment 2": [
-      3,
-      4,
-      5
-    ],
-    "Assessment 4": [
-      6,
-      7,
-      8
-    ]
-  }
+
+"APM1513": {
+  "Assessment 1": [0, 1, 2],
+  "Assessment 2": [1, 2, 3],
+  "Assessment 3": [2, 3, 4],
+  "Assessment 4": [3, 4, 5],
+  "Final Exam": [0, 1, 2, 3, 4, 5]
+},
+
+"MAT2612": {
+  "Assessment 1": [0, 1, 2],
+  "Assessment 2": [3],
+  "Assessment 3": [4],
+  "Assessment 4": [5],
+  "Final Exam": [0, 1, 2, 3, 4, 5]
+},
+
+"COS2614": {
+  "Assessment 1": [0, 1, 2, 3],
+  "Assessment 2": [4, 5, 6],
+  "Assessment 3": [7, 8, 9],
+  "Assessment 4": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  "Final Exam": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+},
+
+"APM2616": {
+  "Assessment 1": [0, 1, 2, 3],
+  "Assessment 2": [4, 5, 6, 7],
+  "Assessment 3": [8, 9, 10, 11],
+  "Assessment 4": [12, 13, 14, 15],
+  "Final Exam": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+},
+
+"COS1521": {
+  "Assessment 1": [0],
+  "Assessment 2": [1, 2, 3, 4, 5],
+  "Assessment 3": [6, 7, 8, 9],
+  "Assessment 4": [10, 11, 12, 13],
+  "Assessment 5": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+  "Final Exam": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+},
+
+"COS2611": {
+  "Assessment 1": [0],
+  "Assessment 2": [1],
+  "Assessment 3": [2],
+  "Assessment 4": [3, 4],
+  "Final Exam": [0, 1, 2, 3, 4]
+},
+
+"COS3751": {
+  "Assessment 1": [0, 1, 2, 3, 4],
+  "Assessment 2": [5, 6, 7, 8],
+  "Assessment 3": [9, 10, 11, 12],
+  "Final Exam": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+},
+
+"COS3761": {
+  "Assessment 1": [0],
+  "Assessment 2": [1],
+  "Assessment 3": [2],
+  "Final Exam": [0, 1, 2]
+},
+
+"FYE1500": {
+  "Assessment 1": [0, 1],
+  "Assessment 2": [2, 3],
+  "Assessment 3": [4, 5],
+  "Assessment 4": [6, 7],
+  "Assessment 5": [8, 9],
+  "Final Exam": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+}
+
 };
+
+
+
+
+
 
 
 
@@ -5067,7 +4549,7 @@ FILE: ./public\sw.js
 // UNISA Tracker — Service Worker
 // Caches all app files so it works offline after first load
 
-const CACHE_NAME = 'unisa-tracker-v10';
+const CACHE_NAME = 'unisa-tracker-v12';
 
 const ASSETS = [
   '/',
