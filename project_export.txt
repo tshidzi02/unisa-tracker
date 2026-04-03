@@ -1266,8 +1266,10 @@ function saveScheduleRecord(days,allItems,endDate,hoursDay,settings){
   const sig=JSON.stringify({endDate,hoursDay,settings,days:sd,allItems});
   const ei=schedules.findIndex(s=>JSON.stringify({endDate:s.endDate,hoursDay:s.hoursDay,settings:s.settings,days:s.days||[],allItems:s.allItems||[]})===sig);
   if(ei!==-1) return schedules[ei];
-  const record={id:`sched_${Date.now()}`,savedAt:new Date().toISOString(),endDate,hoursDay,allItems,days:sd,settings};
-  schedules.unshift(record); setSavedSchedules(schedules); return record;
+  const record={id:`sched_${Date.now()}`,savedAt:new Date().toISOString(),endDate,hoursDay,days:sd,settings};
+  schedules.unshift(record);
+  if (schedules.length > 3) schedules = schedules.slice(0, 3); // keep only 3 most recent
+  setSavedSchedules(schedules); return record;
 }
 
 function loadScheduleRecord(id){
@@ -1291,8 +1293,8 @@ function renderSavedSchedules(){
       <div>
         <div class="saved-schedule-title">Finish by ${s.endDate}</div>
         <div class="saved-schedule-meta">Saved: ${savedDate}</div>
-        <div class="saved-schedule-meta">${(s.days||[]).length} study days · ${(s.allItems||[]).length} items · ${s.hoursDay}h/day</div>
-      </div>
+        <div class="saved-schedule-meta">${(s.days||[]).length} study days · ${(s.days||[]).reduce((n,d)=>n+(d.items||[]).length,0)} items · ${s.hoursDay}h/day</div>
+        </div>
       <button class="bulk-btn" onclick="openSavedSchedule('${s.id}')">Open</button>
     </div>`;
   }).join('');
@@ -1399,12 +1401,13 @@ function expandUnitSessions(unit, unitIdx, mod, hardDue, totalSessions) {
       type:          'Learning Unit',
       title:         unit.title,
       sessionLabel:  `${s}/${totalSessions}`,
-      id:            uId,
+      id:            `${uId}__session__${s}`,   // ← unique per session
+      unitId:        uId,                         // ← the parent unit id
       sessionNum:    s,
       sessionTotal:  totalSessions,
       due:           hardDue,
       hardDue:       hardDue,
-      done:          uDone,
+      done:          doneTasks.includes(`${uId}__session__${s}`),
       hours:         2,
       color:         mod.color || 0,
       isUnit:        true,
@@ -1803,7 +1806,7 @@ function renderScheduleOutput(days,allItems,endDate,hoursDay){
     const modBlocks=Object.entries(byMod).map(([code,group])=>{
       const c=col(group.color);
       const rows=group.items.map(item=>{
-        const isDone=doneTasks.includes(item.id);
+        const isDone = doneTasks.includes(item.id);
         const typeIcon=item.isUnit?'📖':item.type==='Assignment'?'📝':item.type==='Quiz'?'📋':item.type==='Exam'?'🎓':item.type==='Test'?'🖊':'✅';
 
         // Session label e.g. "3/13" for multi-session units
@@ -1848,12 +1851,37 @@ function renderScheduleOutput(days,allItems,endDate,hoursDay){
   out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-function schedToggleDone(id){
-  if(doneTasks.includes(id)) doneTasks=doneTasks.filter(x=>x!==id);
-  else doneTasks.push(id);
-  localStorage.setItem('doneTasks',JSON.stringify(doneTasks));
-  rescheduleCurrentView(); renderDashboard();
-  if(activeModule) renderModuleDetail(activeModule);
+function schedToggleDone(id) {
+  if (doneTasks.includes(id)) {
+    doneTasks = doneTasks.filter(x => x !== id);
+  } else {
+    doneTasks.push(id);
+  }
+
+  // Sync parent unit completion if this is a session id
+  const sessionMatch = id.match(/^(.+__unit__\d+)__session__(\d+)$/);
+  if (sessionMatch) {
+    const unitId      = sessionMatch[1];
+    const sessionNum  = parseInt(sessionMatch[2]);
+    // Find total sessions for this unit from the saved schedule
+    const saved = loadScheduleFromStorage();
+    const allSessions = (saved?.allItems || []).filter(i => i.unitId === unitId);
+    const total = allSessions.length;
+    const doneSessions = allSessions.filter(i => doneTasks.includes(i.id)).length;
+
+    if (doneSessions === total && total > 0) {
+      // All sessions done → mark the unit itself done
+      if (!doneTasks.includes(unitId)) doneTasks.push(unitId);
+    } else {
+      // At least one session undone → unit is not fully done
+      doneTasks = doneTasks.filter(x => x !== unitId);
+    }
+  }
+
+  localStorage.setItem('doneTasks', JSON.stringify(doneTasks));
+  rescheduleCurrentView();
+  renderDashboard();
+  if (activeModule) renderModuleDetail(activeModule);
   updateModuleFilter();
 }
 
@@ -2744,10 +2772,10 @@ const MODULE_DATA = [
 const UNIT_LINKS = {
 
 "APM1513": {
-  "Assessment 1": [0, 1, 2],
-  "Assessment 2": [1, 2, 3],
-  "Assessment 3": [2, 3, 4],
-  "Assessment 4": [3, 4, 5],
+  "Assessment 1": [0, 1],
+  "Assessment 2": [2, 3],
+  "Assessment 3": [4],
+  "Assessment 4": [5],
   "Final Exam": [0, 1, 2, 3, 4, 5]
 },
 

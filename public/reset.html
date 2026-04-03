@@ -39,28 +39,12 @@
       padding: 2rem 1rem;
     }
 
-    .container {
-      width: 100%;
-      max-width: 560px;
-    }
+    .container { width: 100%; max-width: 560px; }
 
-    .page-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .page-header .logo {
-      font-size: 2.5rem;
-      margin-bottom: 0.5rem;
-    }
-    .page-header h1 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
-    }
-    .page-header p {
-      font-size: 0.875rem;
-      color: var(--muted);
-    }
+    .page-header { text-align: center; margin-bottom: 2rem; }
+    .page-header .logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .page-header h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .page-header p { font-size: 0.875rem; color: var(--muted); }
 
     .warning-banner {
       background: var(--amber-bg);
@@ -84,12 +68,7 @@
       padding-left: 2px;
     }
 
-    .card-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      margin-bottom: 1.5rem;
-    }
+    .card-grid { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem; }
 
     .data-card {
       background: var(--surface);
@@ -99,14 +78,15 @@
       display: flex;
       align-items: flex-start;
       gap: 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
     }
+    .data-card:hover { border-color: #cbd5e0; }
 
     .data-card-checkbox {
-      width: 20px;
-      height: 20px;
+      width: 20px; height: 20px;
       border: 2px solid var(--border);
       border-radius: 5px;
-      cursor: pointer;
       flex-shrink: 0;
       margin-top: 2px;
       display: flex;
@@ -117,10 +97,7 @@
       color: #fff;
       user-select: none;
     }
-    .data-card-checkbox.checked {
-      background: var(--red);
-      border-color: var(--red);
-    }
+    .data-card-checkbox.checked { background: var(--red); border-color: var(--red); }
 
     .data-card-body { flex: 1; }
     .data-card-title {
@@ -130,12 +107,9 @@
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      flex-wrap: wrap;
     }
-    .data-card-desc {
-      font-size: 0.8rem;
-      color: var(--muted);
-      line-height: 1.5;
-    }
+    .data-card-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
     .data-card-count {
       font-size: 0.75rem;
       font-weight: 600;
@@ -146,17 +120,9 @@
       color: var(--muted);
       white-space: nowrap;
     }
-    .data-card-count.has-data {
-      background: var(--red-bg);
-      border-color: var(--red-border);
-      color: var(--red);
-    }
+    .data-card-count.has-data { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
 
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
+    .actions { display: flex; flex-direction: column; gap: 0.75rem; }
 
     .btn {
       display: flex;
@@ -174,45 +140,22 @@
     }
     .btn:active { transform: scale(0.98); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .btn-danger {
-      background: var(--red);
-      color: #fff;
-    }
-    .btn-secondary {
-      background: var(--surface);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-    .btn-back {
-      background: var(--blue);
-      color: #fff;
-    }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-back { background: var(--blue); color: #fff; }
 
     .result-banner {
       display: none;
       border-radius: var(--radius);
       padding: 0.9rem 1.1rem;
       font-size: 0.875rem;
-      line-height: 1.5;
+      line-height: 1.6;
       margin-top: 1rem;
     }
-    .result-banner.success {
-      background: var(--green-bg);
-      border: 1px solid var(--green-border);
-      color: #276749;
-    }
-    .result-banner.error {
-      background: var(--red-bg);
-      border: 1px solid var(--red-border);
-      color: #9b2c2c;
-    }
+    .result-banner.success { background: var(--green-bg); border: 1px solid var(--green-border); color: #276749; }
+    .result-banner.error   { background: var(--red-bg);   border: 1px solid var(--red-border);   color: #9b2c2c; }
 
-    .divider {
-      height: 1px;
-      background: var(--border);
-      margin: 1.5rem 0;
-    }
+    .divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
 
     .confirm-overlay {
       display: none;
@@ -225,7 +168,6 @@
       padding: 1rem;
     }
     .confirm-overlay.show { display: flex; }
-
     .confirm-box {
       background: var(--surface);
       border-radius: 14px;
@@ -234,31 +176,12 @@
       width: 100%;
       box-shadow: 0 20px 60px rgba(0,0,0,0.2);
     }
-    .confirm-box h2 {
-      font-size: 1.1rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-    .confirm-box p {
-      font-size: 0.875rem;
-      color: var(--muted);
-      line-height: 1.6;
-      margin-bottom: 1.25rem;
-    }
-    .confirm-box ul {
-      list-style: none;
-      margin-bottom: 1.25rem;
-    }
-    .confirm-box ul li {
-      font-size: 0.85rem;
-      padding: 4px 0;
-      color: var(--text);
-    }
+    .confirm-box h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .confirm-box p  { font-size: 0.875rem; color: var(--muted); line-height: 1.6; margin-bottom: 1.25rem; }
+    .confirm-box ul { list-style: none; margin-bottom: 1.25rem; }
+    .confirm-box ul li { font-size: 0.85rem; padding: 4px 0; color: var(--text); }
     .confirm-box ul li::before { content: "✕ "; color: var(--red); font-weight: 700; }
-    .confirm-btns {
-      display: flex;
-      gap: 0.75rem;
-    }
+    .confirm-btns { display: flex; gap: 0.75rem; }
     .confirm-btns .btn { flex: 1; }
   </style>
 </head>
@@ -282,10 +205,7 @@
     <div class="data-card" onclick="toggleCard('doneTasks')">
       <div class="data-card-checkbox" id="chk-doneTasks"></div>
       <div class="data-card-body">
-        <div class="data-card-title">
-          ✅ Task &amp; Unit completions
-          <span class="data-card-count" id="cnt-doneTasks">—</span>
-        </div>
+        <div class="data-card-title">✅ Task &amp; Unit completions <span class="data-card-count" id="cnt-doneTasks">—</span></div>
         <div class="data-card-desc">All checked-off assessments and learning units. Clears your progress so everything shows as pending again.</div>
       </div>
     </div>
@@ -293,21 +213,23 @@
     <div class="data-card" onclick="toggleCard('customTasks')">
       <div class="data-card-checkbox" id="chk-customTasks"></div>
       <div class="data-card-body">
-        <div class="data-card-title">
-          ✏️ Custom tasks
-          <span class="data-card-count" id="cnt-customTasks">—</span>
-        </div>
+        <div class="data-card-title">✏️ Custom tasks <span class="data-card-count" id="cnt-customTasks">—</span></div>
         <div class="data-card-desc">Tasks you added manually. Does not affect the built-in module assessments.</div>
+      </div>
+    </div>
+
+    <div class="data-card" onclick="toggleCard('moduleOverrides')">
+      <div class="data-card-checkbox" id="chk-moduleOverrides"></div>
+      <div class="data-card-body">
+        <div class="data-card-title">📚 Uploaded module data <span class="data-card-count" id="cnt-moduleOverrides">—</span></div>
+        <div class="data-card-desc">Module info parsed from your uploaded myUnisa HTML files. Clear this to re-upload fresh files.</div>
       </div>
     </div>
 
     <div class="data-card" onclick="toggleCard('moduleResources')">
       <div class="data-card-checkbox" id="chk-moduleResources"></div>
       <div class="data-card-body">
-        <div class="data-card-title">
-          📎 Attached files (resources)
-          <span class="data-card-count" id="cnt-moduleResources">—</span>
-        </div>
+        <div class="data-card-title">📎 Attached files (resources) <span class="data-card-count" id="cnt-moduleResources">—</span></div>
         <div class="data-card-desc">PDFs, Word docs, and other files attached to your modules. These can be re-uploaded after clearing.</div>
       </div>
     </div>
@@ -315,11 +237,16 @@
     <div class="data-card" onclick="toggleCard('savedSchedules')">
       <div class="data-card-checkbox" id="chk-savedSchedules"></div>
       <div class="data-card-body">
-        <div class="data-card-title">
-          📅 Saved study schedules
-          <span class="data-card-count" id="cnt-savedSchedules">—</span>
-        </div>
+        <div class="data-card-title">📅 Saved study schedules <span class="data-card-count" id="cnt-savedSchedules">—</span></div>
         <div class="data-card-desc">All generated and saved study schedules. You can regenerate new ones any time.</div>
+      </div>
+    </div>
+
+    <div class="data-card" onclick="toggleCard('__sw_and_cache__')">
+      <div class="data-card-checkbox" id="chk-__sw_and_cache__"></div>
+      <div class="data-card-body">
+        <div class="data-card-title">⚙️ Service worker &amp; browser cache <span class="data-card-count" id="cnt-__sw_and_cache__">—</span></div>
+        <div class="data-card-desc">Forces the browser to download fresh copies of all app files. Use this if the app feels stuck or stale after an update.</div>
       </div>
     </div>
 
@@ -344,7 +271,7 @@
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box">
     <h2>⚠️ Confirm clear</h2>
-    <p>The following data will be permanently deleted from your browser:</p>
+    <p>The following data will be permanently deleted:</p>
     <ul id="confirm-list"></ul>
     <div class="confirm-btns">
       <button class="btn btn-secondary" onclick="hideConfirm()">Cancel</button>
@@ -354,22 +281,32 @@
 </div>
 
 <script>
-  // ── Keys and their human labels ──────────────────────────────
+  // ── All clearable keys ───────────────────────────────────────
   const KEYS = {
-    doneTasks:      { label: 'Task & Unit completions', countFn: raw => JSON.parse(raw || '[]').length + ' items' },
-    customTasks:    { label: 'Custom tasks',            countFn: raw => JSON.parse(raw || '[]').length + ' tasks' },
-    moduleResources:{ label: 'Attached files',          countFn: raw => JSON.parse(raw || '[]').length + ' files' },
-    savedSchedules: { label: 'Saved study schedules',   countFn: raw => JSON.parse(raw || '[]').length + ' schedules' },
+    doneTasks:        { label: 'Task & Unit completions', countFn: raw => JSON.parse(raw || '[]').length + ' items' },
+    customTasks:      { label: 'Custom tasks',            countFn: raw => JSON.parse(raw || '[]').length + ' tasks' },
+    moduleOverrides:  { label: 'Uploaded module data',   countFn: raw => JSON.parse(raw || '[]').length + ' modules' },
+    moduleResources:  { label: 'Attached files',         countFn: raw => JSON.parse(raw || '[]').length + ' files' },
+    savedSchedules:   { label: 'Saved study schedules',  countFn: raw => JSON.parse(raw || '[]').length + ' schedules' },
+    __sw_and_cache__: { label: 'Service worker & browser cache', countFn: () => 'tap to clear' },
   };
+
+  // Also clear these silently when schedules are cleared
+  const SCHEDULE_EXTRAS = ['savedStudySchedule', 'schedSettings'];
 
   const selected = new Set();
 
-  // ── On load: fill in counts ──────────────────────────────────
+  // ── Fill in counts ───────────────────────────────────────────
   function refreshCounts() {
     Object.entries(KEYS).forEach(([key, meta]) => {
-      const raw = localStorage.getItem(key);
       const cntEl = document.getElementById('cnt-' + key);
       if (!cntEl) return;
+      if (key === '__sw_and_cache__') {
+        cntEl.textContent = 'tap to clear';
+        cntEl.classList.remove('has-data');
+        return;
+      }
+      const raw = localStorage.getItem(key);
       if (raw === null) {
         cntEl.textContent = 'empty';
         cntEl.classList.remove('has-data');
@@ -385,7 +322,7 @@
     });
   }
 
-  // ── Toggle selection ─────────────────────────────────────────
+  // ── Toggle card selection ────────────────────────────────────
   function toggleCard(key) {
     const chk = document.getElementById('chk-' + key);
     if (selected.has(key)) {
@@ -401,9 +338,7 @@
   }
 
   function selectAll() {
-    Object.keys(KEYS).forEach(key => {
-      if (!selected.has(key)) toggleCard(key);
-    });
+    Object.keys(KEYS).forEach(key => { if (!selected.has(key)) toggleCard(key); });
   }
 
   // ── Confirm dialog ───────────────────────────────────────────
@@ -413,20 +348,17 @@
     list.innerHTML = [...selected].map(k => `<li>${KEYS[k].label}</li>`).join('');
     document.getElementById('confirm-overlay').classList.add('show');
   }
-
   function hideConfirm() {
     document.getElementById('confirm-overlay').classList.remove('show');
   }
 
-  // ── Nuke service worker caches ───────────────────────────────
-  async function clearServiceWorker() {
+  // ── Unregister SW + delete all caches ───────────────────────
+  async function nukeServiceWorker() {
     try {
-      // Unregister all service workers
       if ('serviceWorker' in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
         await Promise.all(regs.map(r => r.unregister()));
       }
-      // Delete all caches
       if ('caches' in window) {
         const keys = await caches.keys();
         await Promise.all(keys.map(k => caches.delete(k)));
@@ -436,49 +368,63 @@
     }
   }
 
-  // ── Actually clear ───────────────────────────────────────────
+  // ── Perform the actual clear ─────────────────────────────────
   async function performClear() {
     hideConfirm();
 
     const cleared = [];
-    selected.forEach(key => {
+    let nukeSW = false;
+
+    for (const key of selected) {
+      if (key === '__sw_and_cache__') {
+        nukeSW = true;
+        cleared.push(KEYS[key].label);
+        continue;
+      }
       localStorage.removeItem(key);
       cleared.push(KEYS[key].label);
+      // Clear schedule extras when savedSchedules is cleared
+      if (key === 'savedSchedules') {
+        SCHEDULE_EXTRAS.forEach(k => localStorage.removeItem(k));
+      }
       const chk = document.getElementById('chk-' + key);
       if (chk) { chk.classList.remove('checked'); chk.textContent = ''; }
-    });
+    }
+
+    if (nukeSW) await nukeServiceWorker();
+
     selected.clear();
     document.getElementById('clear-btn').disabled = true;
 
-    // Always nuke the service worker cache so the tracker reloads fresh
-    await clearServiceWorker();
-
     const banner = document.getElementById('result-banner');
     banner.className = 'result-banner success';
-    banner.innerHTML = `✅ Cleared: <strong>${cleared.join(', ')}</strong> — and service worker cache reset.<br>
-      Taking you back to the tracker in <strong id="countdown">3</strong>s so you can upload fresh…`;
+    banner.innerHTML = `✅ Cleared: <strong>${cleared.join(', ')}</strong>.<br>
+      ${nukeSW ? 'Service worker unregistered and cache wiped. ' : ''}
+      Returning to tracker in <strong id="countdown">3</strong>s…`;
     banner.style.display = 'block';
-
-    refreshCounts();
     banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-    // Countdown then hard-reload the tracker
+    refreshCounts();
+
+    // Countdown then hard-navigate — bypasses any remaining SW cache
     let count = 3;
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       count--;
       const el = document.getElementById('countdown');
       if (el) el.textContent = count;
       if (count <= 0) {
         clearInterval(interval);
-        // Hard reload bypasses any remaining cache
-        window.location.replace('/?nocache=' + Date.now());
+        // Unregister SW one more time right before navigating,
+        // so the new page load can't be intercepted by a stale worker
+        await nukeServiceWorker();
+        window.location.href = '/?nocache=' + Date.now();
       }
     }, 1000);
   }
 
-  // ── Go back ──────────────────────────────────────────────────
+  // ── Back button ──────────────────────────────────────────────
   function goToTracker() {
-    window.location.replace('/?nocache=' + Date.now());
+    window.location.href = '/';
   }
 
   // ── Init ─────────────────────────────────────────────────────

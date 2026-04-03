@@ -323,8 +323,18 @@
   </main>
 
   <script src="modules-data.js"></script>
-  <script src="app.js"></script>
+  <script src="app-globals.js"></script>
+  <script src="app-persistence.js"></script>
+  <script src="app-ui.js"></script>
+  <script src="app-module-detail.js"></script>
+  <script src="app-upload.js"></script>
+  <script src="app-schedule.js"></script>
+  <script src="app-init.js"></script>
   <script>
+    // your UNIT_LINKS block here
+  </script>
+  <script src="app-resources.js"></script>
+    <script>
     // Register service worker for offline/PWA support
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -335,7 +345,6 @@
     const urlTab = new URLSearchParams(location.search).get('tab');
     if (urlTab) window.addEventListener('load', () => showTab(urlTab));
   </script>
-  <script src="app-resources.js"></script>
 </body>
 </html>
 
